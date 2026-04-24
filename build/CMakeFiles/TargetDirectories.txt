@@ -1,0 +1,3 @@
+/home/zhangbh/Documents/2d_solids_forward/build/CMakeFiles/simDER.dir
+/home/zhangbh/Documents/2d_solids_forward/build/CMakeFiles/edit_cache.dir
+/home/zhangbh/Documents/2d_solids_forward/build/CMakeFiles/rebuild_cache.dir
