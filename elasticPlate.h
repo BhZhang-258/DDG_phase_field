@@ -34,7 +34,10 @@ class elasticPlate
 	Vector2d getVertexStart(int i);
 	Vector2d getVelocity(int i);
 
+	double getPhi(int i);
+
 	void setOneVertexBoundaryCondition(double position, int i, int k);
+	void setPhiBoundaryCondition(double position, int i);
 
 	VectorXd x;
 	VectorXd x0;

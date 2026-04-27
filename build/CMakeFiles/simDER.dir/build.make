@@ -111,10 +111,24 @@ CMakeFiles/simDER.dir/elasticPlate.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/simDER.dir/elasticPlate.cpp.s"
 	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/zhangbh/Documents/2d_solids_forward/elasticPlate.cpp -o CMakeFiles/simDER.dir/elasticPlate.cpp.s
 
+CMakeFiles/simDER.dir/elasticStretchingForce.cpp.o: CMakeFiles/simDER.dir/flags.make
+CMakeFiles/simDER.dir/elasticStretchingForce.cpp.o: ../elasticStretchingForce.cpp
+CMakeFiles/simDER.dir/elasticStretchingForce.cpp.o: CMakeFiles/simDER.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/zhangbh/Documents/2d_solids_forward/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/simDER.dir/elasticStretchingForce.cpp.o"
+	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/simDER.dir/elasticStretchingForce.cpp.o -MF CMakeFiles/simDER.dir/elasticStretchingForce.cpp.o.d -o CMakeFiles/simDER.dir/elasticStretchingForce.cpp.o -c /home/zhangbh/Documents/2d_solids_forward/elasticStretchingForce.cpp
+
+CMakeFiles/simDER.dir/elasticStretchingForce.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/simDER.dir/elasticStretchingForce.cpp.i"
+	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/zhangbh/Documents/2d_solids_forward/elasticStretchingForce.cpp > CMakeFiles/simDER.dir/elasticStretchingForce.cpp.i
+
+CMakeFiles/simDER.dir/elasticStretchingForce.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/simDER.dir/elasticStretchingForce.cpp.s"
+	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/zhangbh/Documents/2d_solids_forward/elasticStretchingForce.cpp -o CMakeFiles/simDER.dir/elasticStretchingForce.cpp.s
+
 CMakeFiles/simDER.dir/externalGravityForce.cpp.o: CMakeFiles/simDER.dir/flags.make
 CMakeFiles/simDER.dir/externalGravityForce.cpp.o: ../externalGravityForce.cpp
 CMakeFiles/simDER.dir/externalGravityForce.cpp.o: CMakeFiles/simDER.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/zhangbh/Documents/2d_solids_forward/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/simDER.dir/externalGravityForce.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/zhangbh/Documents/2d_solids_forward/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building CXX object CMakeFiles/simDER.dir/externalGravityForce.cpp.o"
 	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/simDER.dir/externalGravityForce.cpp.o -MF CMakeFiles/simDER.dir/externalGravityForce.cpp.o.d -o CMakeFiles/simDER.dir/externalGravityForce.cpp.o -c /home/zhangbh/Documents/2d_solids_forward/externalGravityForce.cpp
 
 CMakeFiles/simDER.dir/externalGravityForce.cpp.i: cmake_force
@@ -128,7 +142,7 @@ CMakeFiles/simDER.dir/externalGravityForce.cpp.s: cmake_force
 CMakeFiles/simDER.dir/inertialForce.cpp.o: CMakeFiles/simDER.dir/flags.make
 CMakeFiles/simDER.dir/inertialForce.cpp.o: ../inertialForce.cpp
 CMakeFiles/simDER.dir/inertialForce.cpp.o: CMakeFiles/simDER.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/zhangbh/Documents/2d_solids_forward/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building CXX object CMakeFiles/simDER.dir/inertialForce.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/zhangbh/Documents/2d_solids_forward/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Building CXX object CMakeFiles/simDER.dir/inertialForce.cpp.o"
 	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/simDER.dir/inertialForce.cpp.o -MF CMakeFiles/simDER.dir/inertialForce.cpp.o.d -o CMakeFiles/simDER.dir/inertialForce.cpp.o -c /home/zhangbh/Documents/2d_solids_forward/inertialForce.cpp
 
 CMakeFiles/simDER.dir/inertialForce.cpp.i: cmake_force
@@ -142,7 +156,7 @@ CMakeFiles/simDER.dir/inertialForce.cpp.s: cmake_force
 CMakeFiles/simDER.dir/main.cpp.o: CMakeFiles/simDER.dir/flags.make
 CMakeFiles/simDER.dir/main.cpp.o: ../main.cpp
 CMakeFiles/simDER.dir/main.cpp.o: CMakeFiles/simDER.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/zhangbh/Documents/2d_solids_forward/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Building CXX object CMakeFiles/simDER.dir/main.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/zhangbh/Documents/2d_solids_forward/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Building CXX object CMakeFiles/simDER.dir/main.cpp.o"
 	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/simDER.dir/main.cpp.o -MF CMakeFiles/simDER.dir/main.cpp.o.d -o CMakeFiles/simDER.dir/main.cpp.o -c /home/zhangbh/Documents/2d_solids_forward/main.cpp
 
 CMakeFiles/simDER.dir/main.cpp.i: cmake_force
@@ -156,7 +170,7 @@ CMakeFiles/simDER.dir/main.cpp.s: cmake_force
 CMakeFiles/simDER.dir/setInput.cpp.o: CMakeFiles/simDER.dir/flags.make
 CMakeFiles/simDER.dir/setInput.cpp.o: ../setInput.cpp
 CMakeFiles/simDER.dir/setInput.cpp.o: CMakeFiles/simDER.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/zhangbh/Documents/2d_solids_forward/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Building CXX object CMakeFiles/simDER.dir/setInput.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/zhangbh/Documents/2d_solids_forward/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Building CXX object CMakeFiles/simDER.dir/setInput.cpp.o"
 	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/simDER.dir/setInput.cpp.o -MF CMakeFiles/simDER.dir/setInput.cpp.o.d -o CMakeFiles/simDER.dir/setInput.cpp.o -c /home/zhangbh/Documents/2d_solids_forward/setInput.cpp
 
 CMakeFiles/simDER.dir/setInput.cpp.i: cmake_force
@@ -170,7 +184,7 @@ CMakeFiles/simDER.dir/setInput.cpp.s: cmake_force
 CMakeFiles/simDER.dir/timeStepper.cpp.o: CMakeFiles/simDER.dir/flags.make
 CMakeFiles/simDER.dir/timeStepper.cpp.o: ../timeStepper.cpp
 CMakeFiles/simDER.dir/timeStepper.cpp.o: CMakeFiles/simDER.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/zhangbh/Documents/2d_solids_forward/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Building CXX object CMakeFiles/simDER.dir/timeStepper.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/zhangbh/Documents/2d_solids_forward/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Building CXX object CMakeFiles/simDER.dir/timeStepper.cpp.o"
 	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/simDER.dir/timeStepper.cpp.o -MF CMakeFiles/simDER.dir/timeStepper.cpp.o.d -o CMakeFiles/simDER.dir/timeStepper.cpp.o -c /home/zhangbh/Documents/2d_solids_forward/timeStepper.cpp
 
 CMakeFiles/simDER.dir/timeStepper.cpp.i: cmake_force
@@ -184,7 +198,7 @@ CMakeFiles/simDER.dir/timeStepper.cpp.s: cmake_force
 CMakeFiles/simDER.dir/world.cpp.o: CMakeFiles/simDER.dir/flags.make
 CMakeFiles/simDER.dir/world.cpp.o: ../world.cpp
 CMakeFiles/simDER.dir/world.cpp.o: CMakeFiles/simDER.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/zhangbh/Documents/2d_solids_forward/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Building CXX object CMakeFiles/simDER.dir/world.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/zhangbh/Documents/2d_solids_forward/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Building CXX object CMakeFiles/simDER.dir/world.cpp.o"
 	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/simDER.dir/world.cpp.o -MF CMakeFiles/simDER.dir/world.cpp.o.d -o CMakeFiles/simDER.dir/world.cpp.o -c /home/zhangbh/Documents/2d_solids_forward/world.cpp
 
 CMakeFiles/simDER.dir/world.cpp.i: cmake_force
@@ -200,6 +214,7 @@ simDER_OBJECTS = \
 "CMakeFiles/simDER.dir/dampingForce.cpp.o" \
 "CMakeFiles/simDER.dir/elasticForce.cpp.o" \
 "CMakeFiles/simDER.dir/elasticPlate.cpp.o" \
+"CMakeFiles/simDER.dir/elasticStretchingForce.cpp.o" \
 "CMakeFiles/simDER.dir/externalGravityForce.cpp.o" \
 "CMakeFiles/simDER.dir/inertialForce.cpp.o" \
 "CMakeFiles/simDER.dir/main.cpp.o" \
@@ -213,6 +228,7 @@ simDER_EXTERNAL_OBJECTS =
 simDER: CMakeFiles/simDER.dir/dampingForce.cpp.o
 simDER: CMakeFiles/simDER.dir/elasticForce.cpp.o
 simDER: CMakeFiles/simDER.dir/elasticPlate.cpp.o
+simDER: CMakeFiles/simDER.dir/elasticStretchingForce.cpp.o
 simDER: CMakeFiles/simDER.dir/externalGravityForce.cpp.o
 simDER: CMakeFiles/simDER.dir/inertialForce.cpp.o
 simDER: CMakeFiles/simDER.dir/main.cpp.o
@@ -224,7 +240,7 @@ simDER: /usr/lib/x86_64-linux-gnu/libGL.so
 simDER: /usr/lib/x86_64-linux-gnu/libGLU.so
 simDER: /usr/lib/x86_64-linux-gnu/libglut.so
 simDER: CMakeFiles/simDER.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/zhangbh/Documents/2d_solids_forward/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Linking CXX executable simDER"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/zhangbh/Documents/2d_solids_forward/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_11) "Linking CXX executable simDER"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/simDER.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.

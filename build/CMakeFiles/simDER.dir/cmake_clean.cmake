@@ -5,6 +5,8 @@ file(REMOVE_RECURSE
   "CMakeFiles/simDER.dir/elasticForce.cpp.o.d"
   "CMakeFiles/simDER.dir/elasticPlate.cpp.o"
   "CMakeFiles/simDER.dir/elasticPlate.cpp.o.d"
+  "CMakeFiles/simDER.dir/elasticStretchingForce.cpp.o"
+  "CMakeFiles/simDER.dir/elasticStretchingForce.cpp.o.d"
   "CMakeFiles/simDER.dir/externalGravityForce.cpp.o"
   "CMakeFiles/simDER.dir/externalGravityForce.cpp.o.d"
   "CMakeFiles/simDER.dir/inertialForce.cpp.o"

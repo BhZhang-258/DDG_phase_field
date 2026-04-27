@@ -16,6 +16,11 @@
 },
 {
   "directory": "/home/zhangbh/Documents/2d_solids_forward/build",
+  "command": "/usr/bin/g++  -I/usr/local/include/eigen3 -I/opt/intel/oneapi/mkl/latest/include -g -O2 -fopenmp -o CMakeFiles/simDER.dir/elasticStretchingForce.cpp.o -c /home/zhangbh/Documents/2d_solids_forward/elasticStretchingForce.cpp",
+  "file": "/home/zhangbh/Documents/2d_solids_forward/elasticStretchingForce.cpp"
+},
+{
+  "directory": "/home/zhangbh/Documents/2d_solids_forward/build",
   "command": "/usr/bin/g++  -I/usr/local/include/eigen3 -I/opt/intel/oneapi/mkl/latest/include -g -O2 -fopenmp -o CMakeFiles/simDER.dir/externalGravityForce.cpp.o -c /home/zhangbh/Documents/2d_solids_forward/externalGravityForce.cpp",
   "file": "/home/zhangbh/Documents/2d_solids_forward/externalGravityForce.cpp"
 },

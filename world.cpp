@@ -20,9 +20,11 @@ world::world(setInput &m_inputData)
 	maxIter = m_inputData.GetIntOpt("maxIter");
 	gVector = m_inputData.GetVecOpt("gVector");
 	viscosity = m_inputData.GetScalarOpt("viscosity");
+	Gc = m_inputData.GetScalarOpt("Gc");
+	ell = m_inputData.GetScalarOpt("ell");
+	eta = m_inputData.GetScalarOpt("eta");
 
-	alpha = m_inputData.GetScalarOpt("alpha");
-	beta = m_inputData.GetScalarOpt("beta");
+	stretchingDistance = 0.0;
 }
 
 world::~world()
@@ -72,20 +74,44 @@ void world::CoutData(ofstream &outfile)
 		return;
 	}
 
-	if ( timeStep % 10 != 0)
+	if ( timeStep % 20 != 0)
 	{
 		return;
 	}
 
-	if (timeStep == Nstep)
+	
+	computeRactionForce();
+
+	double totalForce;
+
+	totalForce = 0.0;
+
+	for (int i = 0; i < plate->nv; i++)
+	{
+		Vector2d xS = plate->getVertexStart(i);
+
+		if (abs(xS(1)-1.0) < 1e-8)
+		{
+			totalForce = totalForce + reForce(2 * i + 1);
+		}
+	}
+
+	outfile << stretchingDistance << " " << totalForce << endl;
+
+
+	/*
+	//if (timeStep == Nstep)
 	{
 		for (int i = 0; i < plate->nv; i++)
 		{
 			Vector2d xCurrent = plate->getVertex(i);
+			double phi_local = plate->getPhi(i);
 
-			outfile << xCurrent(0) << " " << xCurrent(1) << endl;
+			outfile << stretchingDistance << " " << xCurrent(0) << " " << xCurrent(1) << " " << phi_local << endl;
 		}
 	}
+	*/
+
 }
 
 void world::setPlateStepper()
@@ -102,7 +128,7 @@ void world::setPlateStepper()
 	// set up force
 	m_inertialForce = new inertialForce(*plate, *stepper);
 	m_gravityForce = new externalGravityForce(*plate, *stepper, gVector);
-	m_elasticForce = new elasticForce(*plate, *stepper, alpha, beta);
+	m_elasticForce = new elasticForce(*plate, *stepper, Gc, ell, eta);
 	m_dampingForce = new dampingForce(*plate, *stepper, viscosity);
 	
 	plate->updateTimeStep();
@@ -128,15 +154,33 @@ void world::plateBoundaryCondition()
 	{
 		Vector2d xCurrent = plate->getVertex(i);
 
-		if (xCurrent(0) < -0.09)
+		if ( abs(xCurrent(1) - 0.0) < 1e-8 )
 		{
 			plate->setVertexBoundaryCondition(xCurrent, i);
+
+			plate->setPhiBoundaryCondition(0.0, i);
 		}
 
-		if (xCurrent(0) > 0.89)
+		if ( abs(xCurrent(1) - 1.0) < 1e-8 )
 		{
-			//plate->setVertexBoundaryCondition(xCurrent, i);
+			plate->setVertexBoundaryCondition(xCurrent, i);
+
+			plate->setPhiBoundaryCondition(0.0, i);
 		}
+
+		/*
+
+		if ( abs(xCurrent(0) - 0.0) < 1e-8 )
+		{
+			plate->setOneVertexBoundaryCondition(xCurrent(0), i, 0);
+		}
+
+		if ( abs(xCurrent(0) - 1.0) < 1e-8 )
+		{
+			plate->setOneVertexBoundaryCondition(xCurrent(0), i, 0);
+		}
+
+		*/
 	}
 
 	//plate->setVertexBoundaryCondition(plate->getVertex(0), 0);
@@ -149,15 +193,20 @@ void world::updateTimeStep()
 	{
 		Vector2d xS = plate->getVertexStart(i);
 
-		if (xS(0) < -0.09)
+		if ( abs(xS(1)-1.0) < 1e-8 && stretchingDistance <= 0.008)
 		{
 			Vector2d xCurrent = plate->getVertex(i);
-			//xCurrent(1) = xCurrent(1) - 0.1 * deltaTime;
+			xCurrent(1) = xCurrent(1) + 0.01 * deltaTime;
 
-			//plate->setVertexBoundaryCondition(xCurrent, i);
+			plate->setVertexBoundaryCondition(xCurrent, i);
 		}
-
 	}
+
+	if (stretchingDistance <= 0.008)
+	{
+		stretchingDistance = stretchingDistance + 0.01 * deltaTime;
+	}
+	
 
 	double normf = forceTol * 10.0;
 	double normf0 = 0;
@@ -176,7 +225,7 @@ void world::updateTimeStep()
 		stepper->setZero();
 
 		m_inertialForce->computeFi();
-		m_gravityForce->computeFg();
+		//m_gravityForce->computeFg();
 		m_elasticForce->computeFe();
 		m_dampingForce->computeFd();
 
@@ -201,7 +250,7 @@ void world::updateTimeStep()
 		if (solved == false)
 		{
 			m_inertialForce->computeJi();
-			m_gravityForce->computeJg();
+			//m_gravityForce->computeJg();
 			m_elasticForce->computeJe();
 			m_dampingForce->computeJd();
 
@@ -255,6 +304,13 @@ MatrixXd world::getScaledCoordinate(int i)
 	xCurrent.col(0) = plate->getVertex(plate->v_triangularElement[i].nv_1);
 	xCurrent.col(1) = plate->getVertex(plate->v_triangularElement[i].nv_2);
 	xCurrent.col(2) = plate->getVertex(plate->v_triangularElement[i].nv_3);
+
+	xCurrent(0,0) = xCurrent(0,0) - 0.5;
+	xCurrent(0,1) = xCurrent(0,1) - 0.5;
+	xCurrent(0,2) = xCurrent(0,2) - 0.5;
+	xCurrent(1,0) = xCurrent(1,0) - 0.5;
+	xCurrent(1,1) = xCurrent(1,1) - 0.5;
+	xCurrent(1,2) = xCurrent(1,2) - 0.5;
 	
 	return xCurrent * scaleRendering;
 }
@@ -262,4 +318,22 @@ MatrixXd world::getScaledCoordinate(int i)
 int world::numPair()
 {
 	return plate->ne;
+}
+
+void world::computeRactionForce()
+{
+	m_elasticForce->computeFe();
+
+	reForce = VectorXd::Zero(plate->ndof);
+
+	reForce = m_elasticForce->reForce;
+}
+
+double world::getPhi(int i)
+{
+	double phi_1 = plate->getPhi(plate->v_triangularElement[i].nv_1);
+	double phi_2 = plate->getPhi(plate->v_triangularElement[i].nv_2);
+	double phi_3 = plate->getPhi(plate->v_triangularElement[i].nv_3);
+
+	return (phi_1 + phi_2 + phi_3) / 3;
 }

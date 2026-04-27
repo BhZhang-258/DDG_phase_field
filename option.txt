@@ -1,15 +1,17 @@
 render 1
 saveData 1
-YoungM 1e5
-totalTime 10.0
-deltaTime 1e-2
+YoungM 210e6
+totalTime 0.6
+deltaTime 1e-4
 density 1000.0
-stol 1e-4
-forceTol 1e-4
+stol 1e-3
+forceTol 1e-3
 maxIter 10
-viscosity 0.0
-scaleRendering 0.5
-gVector 0.0 -100000.0 0.0
-Possion 0.0
-alpha 2.0
-beta 1.0
+viscosity 0.1
+scaleRendering 1.6
+gVector 0.0 0.0 0.0
+Possion 0.3
+Gc 2700.0
+ell 0.015
+eta 1e-4
+

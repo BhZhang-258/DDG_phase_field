@@ -9,7 +9,7 @@ elasticPlate::elasticPlate(double m_YoungM, double m_density, double m_Possion, 
 
 	setupGeometry();
 
-	ndof = 2 * nv;
+	ndof = 3 * nv;
 	x = VectorXd::Zero(ndof);
 	x0 = VectorXd::Zero(ndof);
 	u = VectorXd::Zero(ndof);
@@ -101,6 +101,11 @@ void elasticPlate::setupMass()
 		massArray(2 * nv3 + 1) = massArray(2 * nv3 + 1) + deltaMass;
 	}
 
+	for (int i = 0; i < nv; i++)
+	{
+		massArray(2 * nv + i) = 1e-5;
+	}
+
 
 }
 
@@ -137,6 +142,14 @@ void elasticPlate::setOneVertexBoundaryCondition(double position, int i, int k)
 	x(2 * i + k) = position;
 }
 
+void elasticPlate::setPhiBoundaryCondition(double position, int i)
+{
+	isConstrained[2 * nv + i] = 1;
+
+	// Store in the constrained dof vector
+	x(2 * nv + i) = position;
+}
+
 Vector2d elasticPlate::getVertex(int i)
 {
 	Vector2d xCurrent;
@@ -145,6 +158,11 @@ Vector2d elasticPlate::getVertex(int i)
 	xCurrent(1) = x(2 * i + 1);
 
 	return xCurrent;
+}
+
+double elasticPlate::getPhi(int i)
+{
+	return x(2 * nv + i);
 }
 
 Vector2d elasticPlate::getVertexStart(int i)
@@ -190,8 +208,36 @@ void elasticPlate::updateTimeStep()
 	// compute velocity
 	u = (x - x0) / dt;
 
+
+	// make sure th phi can only increase
+	for (int i = 0; i < nv; i++)
+	{
+		double localPhi_now = x(2 * nv + i);
+		double localPhi_before = x0(2 * nv + i);
+
+		if (localPhi_before > localPhi_now)
+		{
+			x(2 * nv + i) = localPhi_before;
+			x0(2 * nv + i) = localPhi_now;
+		}
+
+	}
+
 	// update x
 	x0 = x;
+
+	// make sure phi cannot be larger than 1.0
+	for (int i = 0; i < nv; i++)
+	{
+		double localPhi = getPhi(i);
+
+		if (localPhi > 1.0)
+		{
+			x(2 * nv + i) = 1.0;
+			x0(2 * nv + i) = 1.0;
+		}
+
+	}
 }
 
 void elasticPlate::updateGuess()
@@ -286,7 +332,7 @@ void elasticPlate::buildElemet()
 		m_basicElement.X.col(1) = getVertex(m_basicElement.nv_2);
 		m_basicElement.X.col(2) = getVertex(m_basicElement.nv_3);
 		
-		m_basicElement.arrayIndex = VectorXi::Zero(6);
+		m_basicElement.arrayIndex = VectorXi::Zero(9);
 
 		m_basicElement.arrayIndex(0) = 2 * m_basicElement.nv_1 + 0;
 		m_basicElement.arrayIndex(1) = 2 * m_basicElement.nv_1 + 1;
@@ -296,6 +342,10 @@ void elasticPlate::buildElemet()
 
 		m_basicElement.arrayIndex(4) = 2 * m_basicElement.nv_3 + 0;
 		m_basicElement.arrayIndex(5) = 2 * m_basicElement.nv_3 + 1;
+
+		m_basicElement.arrayIndex(6) = 2 * nv + m_basicElement.nv_1;
+		m_basicElement.arrayIndex(7) = 2 * nv + m_basicElement.nv_2;
+		m_basicElement.arrayIndex(8) = 2 * nv + m_basicElement.nv_3;
 
 		v_triangularElement.push_back(m_basicElement);	
 	}

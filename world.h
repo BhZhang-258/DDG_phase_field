@@ -40,6 +40,8 @@ public:
 
 	int numPair();
 	MatrixXd getScaledCoordinate(int i);
+
+	double getPhi(int i);
 		
 private:
 
@@ -58,8 +60,10 @@ private:
 	int maxIter;
 	Vector3d gVector;
 	double viscosity;
-	double alpha;
-	double beta;
+	
+	double Gc;
+	double ell;
+	double eta;
 
 	int Nstep;
 	int timeStep;
@@ -81,6 +85,11 @@ private:
 	externalGravityForce *m_gravityForce;
 	elasticForce *m_elasticForce;
 	dampingForce *m_dampingForce;
+
+	void computeRactionForce();
+	VectorXd reForce;
+
+	double stretchingDistance;
 };
 
 #endif

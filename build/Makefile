@@ -201,6 +201,30 @@ elasticPlate.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/simDER.dir/build.make CMakeFiles/simDER.dir/elasticPlate.cpp.s
 .PHONY : elasticPlate.cpp.s
 
+elasticStretchingForce.o: elasticStretchingForce.cpp.o
+.PHONY : elasticStretchingForce.o
+
+# target to build an object file
+elasticStretchingForce.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/simDER.dir/build.make CMakeFiles/simDER.dir/elasticStretchingForce.cpp.o
+.PHONY : elasticStretchingForce.cpp.o
+
+elasticStretchingForce.i: elasticStretchingForce.cpp.i
+.PHONY : elasticStretchingForce.i
+
+# target to preprocess a source file
+elasticStretchingForce.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/simDER.dir/build.make CMakeFiles/simDER.dir/elasticStretchingForce.cpp.i
+.PHONY : elasticStretchingForce.cpp.i
+
+elasticStretchingForce.s: elasticStretchingForce.cpp.s
+.PHONY : elasticStretchingForce.s
+
+# target to generate assembly for a file
+elasticStretchingForce.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/simDER.dir/build.make CMakeFiles/simDER.dir/elasticStretchingForce.cpp.s
+.PHONY : elasticStretchingForce.cpp.s
+
 externalGravityForce.o: externalGravityForce.cpp.o
 .PHONY : externalGravityForce.o
 
@@ -363,6 +387,9 @@ help:
 	@echo "... elasticPlate.o"
 	@echo "... elasticPlate.i"
 	@echo "... elasticPlate.s"
+	@echo "... elasticStretchingForce.o"
+	@echo "... elasticStretchingForce.i"
+	@echo "... elasticStretchingForce.s"
 	@echo "... externalGravityForce.o"
 	@echo "... externalGravityForce.i"
 	@echo "... externalGravityForce.s"

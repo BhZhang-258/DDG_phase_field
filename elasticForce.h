@@ -8,19 +8,24 @@
 class elasticForce
 {
 public:
-	elasticForce(elasticPlate &m_plate, timeStepper &m_stepper, 
-    double m_alpha, double m_beta);
+	elasticForce(elasticPlate &m_plate, timeStepper &m_stepper, double m_Gc, double m_ell, double m_eta);
 	~elasticForce();
 	void computeFe();
 	void computeJe();
     void setFirstJacobian();
 
+    VectorXd reForce;
+
 private:
 	elasticPlate *plate;
     timeStepper *stepper;
 
-    double alpha;
-    double beta;
+    double alpha_input;
+    double beta_input;
+
+    double Gc_input;
+    double ell_input;
+    double eta_input;
 
     double cotangent2D(const Vector2d& a, const Vector2d& b);
     void closestRotationAndY2D(
@@ -38,14 +43,22 @@ private:
         const Vector2d& rj,
         double A0);
 
-    void triElement(
-    const Eigen::Matrix<double, 2, 3>& x,
-    const Eigen::Matrix<double, 2, 3>& X,
-    double materialParameter1,
-    double materialParameter2,
-    double& E,
-    VectorXd& f,
-    MatrixXd& H);
+    void triElementElasticOnly(
+        const Eigen::Matrix<double, 2, 3>& x,
+        const Eigen::Matrix<double, 2, 3>& X,
+        double alpha,
+        double beta,
+        double& Eel,
+        VectorXd& fel,
+        MatrixXd& Hel);
+    void phaseFieldSurfaceEnergyDerivatives(
+        const MatrixXd& referenceShape,   // 2x3
+        const Vector3d& phi,              // [phi1, phi2, phi3]
+        double Gc,
+        double ell,
+        double& Efrac,
+        Vector3d& gradPhi,                // dE/dphi
+        Matrix3d& hessPhi);                // d2E/dphi2
 };
 
 #endif

@@ -18,8 +18,9 @@ setInput::setInput()
   AddOption("maxIter", "maxIter", maxIter);
   AddOption("gVector", "gVector", gVector);
   AddOption("viscosity", "viscosity", viscosity);
-  AddOption("alpha", "alpha", alpha);
-  AddOption("beta", "beta", beta);
+  AddOption("Gc", "Gc", Gc);
+  AddOption("ell", "ell", ell);
+  AddOption("eta", "eta", eta);
 }
 
 setInput::~setInput()

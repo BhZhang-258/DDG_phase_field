@@ -75,13 +75,37 @@ void display(void)
 			//glVertex3f(0.0, 0.0, axisLen);
 		glEnd();
 
-		glColor3f(0.1, 0.1, 0.1);
-		glLineWidth(1.0);
-
 		NPTS = myWorld.numPair();
-		glBegin(GL_LINES);
+
+		//double maxPhi = -1.0;
 		for (int i = 0; i < NPTS; i++)
 		{
+			glBegin(GL_LINES);
+
+			double phi = myWorld.getPhi(i);
+
+			float r, g, b;
+
+    		if (phi < 0.5)
+    		{
+        		// Blue -> Green
+        		float t = phi / 0.5f;  // normalize to [0,1]
+        		r = 0.0f;
+        		g = t;
+        		b = 1.0f - t;
+    		}
+    		else
+    		{
+       	 		// Green -> Red
+        		float t = (phi - 0.5f) / 0.5f;  // normalize to [0,1]
+        		r = t;
+        		g = 1.0f - t;
+        		b = 0.0f;
+    		}
+
+   	 		glColor3f(r, g, b);
+    		glLineWidth(1.0f);
+
 			MatrixXd xCurrent = myWorld.getScaledCoordinate(i);
 
 			Vector2d xCurrent_1 = xCurrent.col(0);
@@ -96,14 +120,16 @@ void display(void)
 
 			glVertex3f(xCurrent_2(0), xCurrent_2(1), 0.0);
 			glVertex3f(xCurrent_3(0), xCurrent_3(1), 0.0);
+			glEnd();
 		}
-		glEnd();
 
-		glColor3f(1.0, 0.0, 0.0);
-		glPointSize(5.0);
-		glBegin(GL_POINTS);
+		//cout << "maxPhi " << maxPhi << endl;
 
-		glEnd();
+		//glColor3f(1.0, 0.0, 0.0);
+		//glPointSize(5.0);
+		//glBegin(GL_POINTS);
+
+		//glEnd();
 		
 		glFlush();
 		
