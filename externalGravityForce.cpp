@@ -1,9 +1,8 @@
 #include "externalGravityForce.h"
 
-externalGravityForce::externalGravityForce(elasticPlate &m_plate, timeStepper &m_stepper, Vector3d m_gVector)
+externalGravityForce::externalGravityForce(elasticPlate &m_plate,Vector3d m_gVector)
 {
 	plate = &m_plate;
-	stepper = &m_stepper;
 	gVector = m_gVector;
 	setGravity();
 }
@@ -13,22 +12,22 @@ externalGravityForce::~externalGravityForce()
 	;
 }
 
-void externalGravityForce::computeFg()
+void externalGravityForce::computeFg(timeStepper &m_stepper)
 {
-	for (int i=0; i < plate->ndof; i++)
+	for (int i=0; i < plate->ndof_u; i++)
 	{
-		stepper->addForce(i, -massGravity[i]); // subtracting gravity force
+		m_stepper.addForce(i, -massGravity[i]); // subtracting gravity force
 	}	
 }
 
-void externalGravityForce::computeJg()
+void externalGravityForce::computeJg(timeStepper &m_stepper)
 {
 	;
 }
 
 void externalGravityForce::setGravity()
 {
-	massGravity = VectorXd::Zero(plate->ndof);
+	massGravity = VectorXd::Zero(plate->ndof_u);
 
 	for (int i = 0; i < plate->nv; i++)
 	{

@@ -9,10 +9,16 @@ elasticPlate::elasticPlate(double m_YoungM, double m_density, double m_Possion, 
 
 	setupGeometry();
 
-	ndof = 3 * nv;
-	x = VectorXd::Zero(ndof);
-	x0 = VectorXd::Zero(ndof);
-	u = VectorXd::Zero(ndof);
+	ndof_u = 2 * nv;
+	ndof_phi = nv;
+
+	x = VectorXd::Zero(ndof_u);
+	x0 = VectorXd::Zero(ndof_u);
+	u = VectorXd::Zero(ndof_u);
+
+	phi = VectorXd::Zero(ndof_phi);
+	phi_old = VectorXd::Zero(ndof_phi);
+	phi_prev = VectorXd::Zero(ndof_phi);
 
 	for (int i = 0; i < nv; i++)
 	{
@@ -27,46 +33,64 @@ elasticPlate::elasticPlate(double m_YoungM, double m_density, double m_Possion, 
 	setupMass();
 
 	//set up constraint map
-	isConstrained = new int[ndof];
-    for (int i=0; i < ndof; i++)
-    {
-		isConstrained[i] = 0;
-    }
+	isConstrained_u = VectorXi::Zero(ndof_u);
+	isConstrained_phi = VectorXi::Zero(ndof_phi);
 }
 
 elasticPlate::~elasticPlate()
 {
-	delete isConstrained;
-	delete unconstrainedMap;
-	delete fullToUnconsMap;
+	;
 }
 
 void elasticPlate::setup()
 {
-	ncons = 0;
-    for (int i=0; i < ndof; i++)
+	ncons_u = 0;
+	ncons_phi = 0;
+    for (int i=0; i < ndof_u; i++)
     {
-		if (isConstrained[i] > 0)
+		if (isConstrained_u[i] > 0)
 		{
-			ncons++;
+			ncons_u++;
 		}
 	}
-	uncons = ndof - ncons;
+	for (int i=0; i < ndof_phi; i++)
+    {
+		if (isConstrained_phi[i] > 0)
+		{
+			ncons_phi++;
+		}
+	}
+	uncons_u = ndof_u - ncons_u;
+	uncons_phi = ndof_phi - ncons_phi;
+	
+	fullToUnconsMap_u = VectorXi::Constant(ndof_u, -1);
+	unconstrainedMap_u = VectorXi::Constant(uncons_u, -1);
+	
+	fullToUnconsMap_phi = VectorXi::Constant(ndof_phi, -1);
+	unconstrainedMap_phi = VectorXi::Constant(uncons_phi, -1);
 
-	unconstrainedMap = new int[uncons]; // maps xUncons to x
-	fullToUnconsMap = new int[ndof];
 	setupMap();
 }
 
 void elasticPlate::setupMap()
 {
 	int c = 0;
-	for (int i=0; i < ndof; i++)
+	for (int i=0; i < ndof_u; i++)
 	{
-		if (isConstrained[i] == 0)
+		if (isConstrained_u[i] == 0)
 		{
-			unconstrainedMap[c] = i;
-			fullToUnconsMap[i] = c;
+			unconstrainedMap_u[c] = i;
+			fullToUnconsMap_u[i] = c;
+			c++;
+		}
+	}
+	c = 0;
+	for (int i=0; i < ndof_phi; i++)
+	{
+		if (isConstrained_phi[i] == 0)
+		{
+			unconstrainedMap_phi[c] = i;
+			fullToUnconsMap_phi[i] = c;
 			c++;
 		}
 	}
@@ -75,7 +99,7 @@ void elasticPlate::setupMap()
 void elasticPlate::setupMass()
 {
 
-	massArray = VectorXd::Zero(ndof);
+	massArray = VectorXd::Zero(ndof_u);
 
 	for (int i = 0; i < ne; i++)
 	{
@@ -101,34 +125,30 @@ void elasticPlate::setupMass()
 		massArray(2 * nv3 + 1) = massArray(2 * nv3 + 1) + deltaMass;
 	}
 
-	for (int i = 0; i < nv; i++)
-	{
-		massArray(2 * nv + i) = 1e-5;
-	}
-
-
 }
 
 int elasticPlate::getIfConstrained(int k)
 {
-	return isConstrained[k];
+	return isConstrained_u[k];
+}
+int elasticPlate::getIfConstrained_phi(int k)
+{
+	return isConstrained_phi[k];
 }
 
 void elasticPlate::setVertexBoundaryCondition(Vector2d position, int k)
 {
-	isConstrained[2 * k + 0] = 1;
-	isConstrained[2 * k + 1] = 1;
-	//isConstrained[3 * k + 2] = 1;
+	isConstrained_u[2 * k + 0] = 1;
+	isConstrained_u[2 * k + 1] = 1;
 
 	// Store in the constrained dof vector
 	x(2 * k + 0) = position(0);
 	x(2 * k + 1) = position(1);
-	//x(3 * k + 2) = position(2);
 }
 
 void elasticPlate::setConstraint(double position, int k)
 {
-	isConstrained[k] = 1;
+	isConstrained_u[k] = 1;
 
 	// Store in the constrained dof vector
 	x(k) = position;
@@ -136,7 +156,7 @@ void elasticPlate::setConstraint(double position, int k)
 
 void elasticPlate::setOneVertexBoundaryCondition(double position, int i, int k)
 {
-	isConstrained[2 * i + k] = 1;
+	isConstrained_u[2 * i + k] = 1;
 
 	// Store in the constrained dof vector
 	x(2 * i + k) = position;
@@ -144,10 +164,10 @@ void elasticPlate::setOneVertexBoundaryCondition(double position, int i, int k)
 
 void elasticPlate::setPhiBoundaryCondition(double position, int i)
 {
-	isConstrained[2 * nv + i] = 1;
+	isConstrained_u[i] = 1;
 
 	// Store in the constrained dof vector
-	x(2 * nv + i) = position;
+	x(i) = position;
 }
 
 Vector2d elasticPlate::getVertex(int i)
@@ -162,7 +182,7 @@ Vector2d elasticPlate::getVertex(int i)
 
 double elasticPlate::getPhi(int i)
 {
-	return x(2 * nv + i);
+	return phi(i);
 }
 
 Vector2d elasticPlate::getVertexStart(int i)
@@ -210,49 +230,56 @@ void elasticPlate::updateTimeStep()
 
 
 	// make sure th phi can only increase
-	for (int i = 0; i < nv; i++)
-	{
-		double localPhi_now = x(2 * nv + i);
-		double localPhi_before = x0(2 * nv + i);
+	// for (int i = 0; i < nv; i++)
+	// {
+	// 	double localPhi_now = x(2 * nv + i);
+	// 	double localPhi_before = x0(2 * nv + i);
 
-		if (localPhi_before > localPhi_now)
-		{
-			x(2 * nv + i) = localPhi_before;
-			x0(2 * nv + i) = localPhi_now;
-		}
+	// 	if (localPhi_before > localPhi_now)
+	// 	{
+	// 		x(2 * nv + i) = localPhi_before;
+	// 		x0(2 * nv + i) = localPhi_now;
+	// 	}
 
-	}
+	// }
 
 	// update x
 	x0 = x;
 
 	// make sure phi cannot be larger than 1.0
-	for (int i = 0; i < nv; i++)
-	{
-		double localPhi = getPhi(i);
+	// for (int i = 0; i < nv; i++)
+	// {
+	// 	double localPhi = getPhi(i);
 
-		if (localPhi > 1.0)
-		{
-			x(2 * nv + i) = 1.0;
-			x0(2 * nv + i) = 1.0;
-		}
+	// 	if (localPhi > 1.0)
+	// 	{
+	// 		x(2 * nv + i) = 1.0;
+	// 		x0(2 * nv + i) = 1.0;
+	// 	}
 
-	}
+	// }
 }
 
 void elasticPlate::updateGuess()
 {
-	for (int c=0; c < uncons; c++)
+	for (int c=0; c < uncons_u; c++)
 	{
-		x[unconstrainedMap[c]] = x[unconstrainedMap[c]] + u[unconstrainedMap[c]] * dt;
+		x[unconstrainedMap_u[c]] = x[unconstrainedMap_u[c]] + u[unconstrainedMap_u[c]] * dt;
 	}
 }
 
 void elasticPlate::updateNewtonMethod(VectorXd m_motion)
 {
-	for (int c=0; c < uncons; c++)
+	for (int c=0; c < uncons_u; c++)
 	{
-		x[unconstrainedMap[c]] -= m_motion[c];
+		x[unconstrainedMap_u[c]] -= m_motion[c];
+	}
+}
+void elasticPlate::updateNewtonMethod_phi(VectorXd m_motion)
+{
+	for (int c=0; c < uncons_phi; c++)
+	{
+		phi[unconstrainedMap_phi[c]] -= m_motion[c];
 	}
 }
 
@@ -268,7 +295,6 @@ void elasticPlate::setupGeometry()
 
 		xCurrent(0) = a;
 		xCurrent(1) = b;
-
 		v_nodes.push_back(xCurrent);
 	}
 	nv = v_nodes.size();
@@ -314,23 +340,94 @@ void elasticPlate::buildElemet()
 		Vector2d x2 = getVertex(m_basicElement.nv_2);
 		Vector2d x3 = getVertex(m_basicElement.nv_3);
 
-		Matrix2d Dm;
-    	Dm.col(0) = x2 - x1;
-    	Dm.col(1) = x3 - x1;
+		Vector2d e1 = x2 - x1;
+		Vector2d e2 = x3 - x1;
+		double A0 = 0.5 * std::abs(e1.x() * e2.y() - e1.y() * e2.x());
+		m_basicElement.area = A0;
+		m_basicElement.abar = Geometry::firstFundamentalForm( x1 , x2 , x3 , nullptr,  nullptr );
+		m_basicElement.abarinv = m_basicElement.abar.inverse();
+		
+		double fib_theta = 0.0;  // Local material coordinate system
+		Vector2d u; // fiber direction 1
+		u << cos(fib_theta), sin(fib_theta);
 
-    	const double detDm = Dm.determinant();
-    	if (detDm <= 0.0)
-    	{
-        	m_basicElement.nv_1 = elementCurrent(0);
-			m_basicElement.nv_2 = elementCurrent(2);
-			m_basicElement.nv_3 = elementCurrent(1);
-    	}
+		Vector2d v; // fiber direction 2
+		v << -sin(fib_theta), cos(fib_theta);
 
-		m_basicElement.X = MatrixXd::Zero(2,3);
+		// The rotation matrix of edge coordinate system(e1,e2) to material (u,v)
+		m_basicElement.M << e1.dot(u), e2.dot(u),
+     		e1.dot(v), e2.dot(v);
 
-		m_basicElement.X.col(0) = getVertex(m_basicElement.nv_1);
-		m_basicElement.X.col(1) = getVertex(m_basicElement.nv_2);
-		m_basicElement.X.col(2) = getVertex(m_basicElement.nv_3);
+		
+		double d = 0;  // fiber stiffness ratio
+
+
+		double E_1 = YoungM * (1+d);
+		double E_2 = YoungM;
+		double nu12 = Possion;
+		double G12 = E_2 / ( 2 * (1 + Possion) );
+		double nu21 = nu12 * (E_2 / E_1);
+		double denom = 1 - nu12 * nu21;
+		double C11 = E_1 / denom;
+		double C22 = E_2 / denom;
+		double C12 = (nu12 * E_2) / denom;  // or (nu21 * E_1) / denom
+		double mu_shear = G12;
+
+		m_basicElement.C << 
+		C11, 0,           0,           C12,
+		0,   0,           2*mu_shear,  0,
+		0,   2*mu_shear,  0,           0,
+		C12, 0,           0,           C22;
+
+		double lambda = YoungM * Possion / ( 1 - Possion * Possion );
+		double mu = YoungM / ( 2 * (1 + Possion) );
+
+		m_basicElement.C1 << 
+		lambda, 0,      0,      lambda,
+		0,   	0,      0,  	0,
+		0,   	0,  	0,      0,
+		lambda, 0,      0,      lambda;
+		m_basicElement.C2 << 
+		2*mu,	0, 		0,      0,
+		0,   	0,   	2*mu,  	0,
+		0,   	2*mu,  	0,   	0,
+		0, 		0,      0,      2*mu;
+		//
+		// Mphi
+		// --------------------------
+		Matrix3d Mphi;
+		Mphi << 2.0, 1.0, 1.0,
+				1.0, 2.0, 1.0,
+				1.0, 1.0, 2.0;
+		Mphi *= (A0 / 12.0);
+		m_basicElement.Mphi = Mphi;
+
+		// --------------------------
+		// Bphi
+		// --------------------------
+		Vector2d gradN1, gradN2, gradN3;
+		gradN1 << (x2.y() - x3.y()), (x3.x() - x2.x());
+		gradN2 << (x3.y() - x1.y()), (x1.x() - x3.x());
+		gradN3 << (x1.y() - x2.y()), (x2.x() - x1.x());
+
+		gradN1 /= (2.0 * A0);
+		gradN2 /= (2.0 * A0);
+		gradN3 /= (2.0 * A0);
+
+		Eigen::Matrix<double, 2, 3> Bphi;
+		Bphi.col(0) = gradN1;
+		Bphi.col(1) = gradN2;
+		Bphi.col(2) = gradN3;
+
+		m_basicElement.Bphi = Bphi;
+
+		// --------------------------
+		// Kphi
+		// --------------------------
+		Matrix3d Kphi = A0 * (Bphi.transpose() * Bphi);
+		m_basicElement.Kphi = Kphi;
+
+	//
 		
 		m_basicElement.arrayIndex = VectorXi::Zero(9);
 
@@ -343,11 +440,13 @@ void elasticPlate::buildElemet()
 		m_basicElement.arrayIndex(4) = 2 * m_basicElement.nv_3 + 0;
 		m_basicElement.arrayIndex(5) = 2 * m_basicElement.nv_3 + 1;
 
-		m_basicElement.arrayIndex(6) = 2 * nv + m_basicElement.nv_1;
-		m_basicElement.arrayIndex(7) = 2 * nv + m_basicElement.nv_2;
-		m_basicElement.arrayIndex(8) = 2 * nv + m_basicElement.nv_3;
+		// m_basicElement.arrayIndex(6) = 2 * nv + m_basicElement.nv_1;
+		// m_basicElement.arrayIndex(7) = 2 * nv + m_basicElement.nv_2;
+		// m_basicElement.arrayIndex(8) = 2 * nv + m_basicElement.nv_3;
 
 		v_triangularElement.push_back(m_basicElement);	
 	}
 
+
 }
+

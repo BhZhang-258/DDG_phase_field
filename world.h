@@ -78,7 +78,8 @@ private:
 	elasticPlate *plate;
 
 	// stepper
-	timeStepper *stepper;
+	timeStepper *stepper_e;
+	timeStepper *stepper_phi;
 
 	// force
 	inertialForce *m_inertialForce;
@@ -87,7 +88,9 @@ private:
 	dampingForce *m_dampingForce;
 
 	void computeRactionForce();
+	std::vector<int> loadid;
 	VectorXd reForce;
+	double maxVal = 0.0;
 
 	double stretchingDistance;
 };

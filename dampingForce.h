@@ -8,16 +8,16 @@
 class dampingForce
 {
 public:
-	dampingForce(elasticPlate &m_plate, timeStepper &m_stepper, double m_viscosity);
+	dampingForce(elasticPlate &m_plate, double m_viscosity);
 	~dampingForce();
-	void computeFd();
-	void computeJd();
+	void computeFd(timeStepper &m_stepper);
+	void computeJd(timeStepper &m_stepper);
 
-	void setFirstJacobian();
+	void setFirstJacobian(timeStepper &m_stepper);
 
 private:
 	elasticPlate *plate;
-    timeStepper *stepper;
+    
 
     double viscosity;
 

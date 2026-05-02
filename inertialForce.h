@@ -8,16 +8,15 @@
 class inertialForce
 {
 public:
-	inertialForce(elasticPlate &m_plate, timeStepper &m_stepper);
+	inertialForce(elasticPlate &m_plate);
 	~inertialForce();
-	void computeFi();
-	void computeJi();
+	void computeFi( timeStepper &m_stepper);
+	void computeJi( timeStepper &m_stepper);
 
-	void setFirstJacobian();
+	void setFirstJacobian( timeStepper &m_stepper);
 	
 private:
 	elasticPlate *plate;
-	timeStepper *stepper;
     			
     int ind1, ind2, mappedInd1, mappedInd2;	
     double f, jac;

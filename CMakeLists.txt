@@ -5,8 +5,8 @@ set(CMAKE_CXX_STANDARD 17)
 
 add_compile_options(-fopenmp)
 
-set(CMAKE_CXX_FLAGS_DEBUG "-g -O2")
-set(CMAKE_CXX_FLAGS_RELEASE "-O2")
+set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
+set(CMAKE_CXX_FLAGS_RELEASE "-Ofast")
 
 find_package(Eigen3 REQUIRED)
 find_package(OpenGL REQUIRED)

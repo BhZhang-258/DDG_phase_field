@@ -2,6 +2,7 @@
 #define ELASTICPLATE_H
 
 #include "eigenIncludes.h"
+#include "GeometryUtils.h"
 #include <fstream>
 
 struct basicElement
@@ -10,9 +11,23 @@ struct basicElement
 	int nv_2;
 	int nv_3;
 
-	MatrixXd X;
+	Matrix4d C;
+	Matrix4d C1; // Volume term
+	Matrix4d C2; // Shear energy term
+	Matrix2d M;
+
+	Matrix2d abar;
+	Matrix2d abarinv;
+
+	double area; // Initial Geometry area
+
+	Matrix3d Mphi;
+	Matrix<double, 2, 3> Bphi;
+	Matrix3d Kphi;
+	double H_history;
 
 	VectorXi arrayIndex;
+	Vector3i arrayIndex_phi;
 };
 
 class elasticPlate
@@ -39,11 +54,6 @@ class elasticPlate
 	void setOneVertexBoundaryCondition(double position, int i, int k);
 	void setPhiBoundaryCondition(double position, int i);
 
-	VectorXd x;
-	VectorXd x0;
-	VectorXd u;
-	VectorXd xStart;
-
 	std::vector<Vector2d> v_nodes;
 	std::vector<Vector3i> v_element;
 
@@ -52,9 +62,23 @@ class elasticPlate
 	int nv;
 	int ne;
 
-	int ndof;
-	int uncons;
-	int ncons;
+	int ndof_u;
+	int uncons_u;
+	int ncons_u;
+
+	int ndof_phi;
+	int uncons_phi;
+	int ncons_phi;
+
+	VectorXd x;
+	VectorXd x0;
+	VectorXd u;
+	VectorXd xStart;
+
+	VectorXd phi;       
+	VectorXd phi_old;   
+	VectorXd phi_prev;  
+	// VectorXd dphi;      
 
 	void setupGeometry();
 
@@ -62,24 +86,32 @@ class elasticPlate
 	void setConstraint(double position, int k);
 
 	// boundary conditions
-	int* isConstrained;
+	VectorXi isConstrained_u;
+	VectorXi isConstrained_phi;
 	int getIfConstrained(int k);
-	int* unconstrainedMap;
-	int* fullToUnconsMap;
+    int getIfConstrained_phi(int k);
+    VectorXi unconstrainedMap_u;
+    VectorXi unconstrainedMap_phi;
+	VectorXi fullToUnconsMap_u;
+	VectorXi fullToUnconsMap_phi;
+
 	void setup();
 	void setupMap();
 
 	void updateTimeStep();
 	void updateGuess();
 	void updateNewtonMethod(VectorXd m_motion);
-	void prepareForIteration();
+    void updateNewtonMethod_phi(VectorXd m_motion);
+    void prepareForIteration();
 
-	VectorXd massArray;
+    VectorXd massArray;
 	void setupMass();
 
 	void buildElemet();
 
-	private:
+    Matrix2d getFFF(int idx, Matrix<double, 4, 9> *derivative, std::vector<Matrix<double, 9, 9>> *hessian);
+
+private:
 };
 
 #endif

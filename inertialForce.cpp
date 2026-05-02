@@ -1,9 +1,8 @@
 #include "inertialForce.h"
 
-inertialForce::inertialForce(elasticPlate &m_plate, timeStepper &m_stepper)
+inertialForce::inertialForce(elasticPlate &m_plate)
 {
 	plate = &m_plate;
-	stepper = &m_stepper;
 }
 
 inertialForce::~inertialForce()
@@ -11,30 +10,30 @@ inertialForce::~inertialForce()
 	;
 }
 
-void inertialForce::computeFi()
+void inertialForce::computeFi( timeStepper &m_stepper)
 {
-	for (int i = 0; i < plate->ndof; i++)
+	for (int i = 0; i < plate->ndof_u; i++)
 	{
 		f = plate->massArray[i] * (plate->x[i] - plate->x0[i]) / ((plate->dt) *(plate->dt))
 				- (plate->massArray[i] * plate->u[i])/(plate->dt);
 
-		stepper->addForce(i, f);
+		m_stepper.addForce(i, f);
 	}
 }
 
-void inertialForce::computeJi()
+void inertialForce::computeJi(timeStepper &m_stepper)
 {
-	for (int i=0; i<plate->ndof; i++)
+	for (int i=0; i<plate->ndof_u; i++)
     {
 		jac = plate->massArray(i)/ ((plate->dt) *(plate->dt));
-		stepper->addJacobian(i, i, jac);
+		m_stepper.addJacobian(i, i, jac);
 	}
 }
 
-void inertialForce::setFirstJacobian()
+void inertialForce::setFirstJacobian(timeStepper &m_stepper)
 {
-	for (int i=0; i<plate->ndof; i++)
+	for (int i=0; i<plate->ndof_u; i++)
 	{
-		stepper->addJacobian(i, i, 1);
+		m_stepper.addFirstJacobian(i, i);
 	}
 }

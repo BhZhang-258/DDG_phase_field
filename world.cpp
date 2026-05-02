@@ -1,4 +1,5 @@
 #include "world.h"
+#include <chrono>
 
 world::world()
 {
@@ -80,23 +81,23 @@ void world::CoutData(ofstream &outfile)
 	}
 
 	
-	computeRactionForce();
+	// computeRactionForce();
 
-	double totalForce;
+	// double totalForce;
 
-	totalForce = 0.0;
+	// totalForce = 0.0;
 
-	for (int i = 0; i < plate->nv; i++)
-	{
-		Vector2d xS = plate->getVertexStart(i);
+	// for (int i = 0; i < plate->nv; i++)
+	// {
+	// 	Vector2d xS = plate->getVertexStart(i);
 
-		if (abs(xS(1)-1.0) < 1e-8)
-		{
-			totalForce = totalForce + reForce(2 * i + 1);
-		}
-	}
+	// 	if (abs(xS(1)-1.0) < 1e-8)
+	// 	{
+	// 		totalForce = totalForce + reForce(2 * i + 1);
+	// 	}
+	// }
 
-	outfile << stretchingDistance << " " << totalForce << endl;
+	// outfile << stretchingDistance << " " << totalForce << endl;
 
 
 	/*
@@ -118,32 +119,56 @@ void world::setPlateStepper()
 {
 	// Create the plate 
 	plate = new elasticPlate(YoungM, density, Possion, deltaTime);
-
 	plateBoundaryCondition();
 
 	plate->setup();
 
-	stepper = new timeStepper(*plate);
+	// set up stepper
+	SolverConfig config_e;
+	config_e.total_dof = plate->ndof_u;
+	config_e.unconstrained_dof =  plate->uncons_u;
+	config_e.fullToUncons = plate->fullToUnconsMap_u;
+	config_e.isConstrained = plate->isConstrained_u;
+
+
+	stepper_e = new timeStepper(config_e);
+
+	SolverConfig config_phi;
+
+	// stepper_phi = new timeStepper(config_phi);
 
 	// set up force
-	m_inertialForce = new inertialForce(*plate, *stepper);
-	m_gravityForce = new externalGravityForce(*plate, *stepper, gVector);
-	m_elasticForce = new elasticForce(*plate, *stepper, Gc, ell, eta);
-	m_dampingForce = new dampingForce(*plate, *stepper, viscosity);
+	m_inertialForce = new inertialForce(*plate);
+	m_gravityForce = new externalGravityForce(*plate, gVector);
+	m_elasticForce = new elasticForce(*plate, Gc, ell, eta);
+	m_dampingForce = new dampingForce(*plate, viscosity);
 	
 	plate->updateTimeStep();
 
 	// set up first jacobian
-	m_inertialForce->setFirstJacobian();
-	m_elasticForce->setFirstJacobian();
-	m_dampingForce->setFirstJacobian();
+	m_inertialForce->setFirstJacobian(*stepper_e);
+	m_elasticForce->setFirstJacobian(*stepper_e);
+	m_dampingForce->setFirstJacobian(*stepper_e);
+	stepper_e->finalizePattern();
+	// set up pardiso
+	stepper_e->first_time_PARDISO_setup();
 
-	stepper->first_time_PARDISO_setup();
 
+	for (int i=0; i < plate->nv ; i++)
+	{
+		Vector2d xCurrent = plate->getVertex(i);
+		Vector2d xtemp;
+		xtemp(0) = xCurrent(0) /2; 
+		xtemp(1) = xCurrent(1) *2 + xCurrent(0); 
+		plate->x.segment(2*i, 2) = xtemp;
+	}
+
+	m_elasticForce->computeFe(*stepper_e);
 	// time step 
 	Nstep = totalTime / deltaTime;
 	timeStep = 0;
 	currentTime = 0.0;
+
 
 }
 
@@ -159,6 +184,7 @@ void world::plateBoundaryCondition()
 			plate->setVertexBoundaryCondition(xCurrent, i);
 
 			plate->setPhiBoundaryCondition(0.0, i);
+			
 		}
 
 		if ( abs(xCurrent(1) - 1.0) < 1e-8 )
@@ -166,46 +192,37 @@ void world::plateBoundaryCondition()
 			plate->setVertexBoundaryCondition(xCurrent, i);
 
 			plate->setPhiBoundaryCondition(0.0, i);
+			loadid.push_back(i);
 		}
+		// plate->setPhiBoundaryCondition(0.0, i);
 
-		/*
-
-		if ( abs(xCurrent(0) - 0.0) < 1e-8 )
-		{
-			plate->setOneVertexBoundaryCondition(xCurrent(0), i, 0);
-		}
-
-		if ( abs(xCurrent(0) - 1.0) < 1e-8 )
-		{
-			plate->setOneVertexBoundaryCondition(xCurrent(0), i, 0);
-		}
-
-		*/
+		
 	}
 
-	//plate->setVertexBoundaryCondition(plate->getVertex(0), 0);
-	//plate->setVertexBoundaryCondition(plate->getVertex(3), 3);
 }
 
 void world::updateTimeStep()
 {
-	for (int i = 0; i < plate->nv; i++)
+	
+	stretchingDistance = stretchingDistance + 1e-2 * deltaTime;
+		
+	
+
+	for (int i = 0; i < loadid.size(); i++)
 	{
-		Vector2d xS = plate->getVertexStart(i);
+		
+			Vector2d xCurrent = plate->getVertex(loadid[i]);
+			Vector2d xStart = plate->getVertexStart(loadid[i]);
+			xCurrent(1) = xStart(1) + stretchingDistance;
 
-		if ( abs(xS(1)-1.0) < 1e-8 && stretchingDistance <= 0.008)
-		{
-			Vector2d xCurrent = plate->getVertex(i);
-			xCurrent(1) = xCurrent(1) + 0.01 * deltaTime;
-
-			plate->setVertexBoundaryCondition(xCurrent, i);
-		}
+			plate->setVertexBoundaryCondition(xCurrent, loadid[i]);
+		
 	}
-
-	if (stretchingDistance <= 0.008)
-	{
-		stretchingDistance = stretchingDistance + 0.01 * deltaTime;
-	}
+	// cerr<< "stretchingDistance: " << stretchingDistance << endl;
+	// cerr<< "current position: " << loadid.size() << endl;
+	// Vector2d xCurrent =  plate->getVertex(loadid[0]);
+	// cerr<< "current position: " << xCurrent.transpose() << endl;
+	
 	
 
 	double normf = forceTol * 10.0;
@@ -222,14 +239,13 @@ void world::updateTimeStep()
 	{
 		plate->prepareForIteration();
 
-		stepper->setZero();
+		stepper_e->setZero();
 
-		m_inertialForce->computeFi();
-		//m_gravityForce->computeFg();
-		m_elasticForce->computeFe();
-		m_dampingForce->computeFd();
+		m_inertialForce->computeFi(*stepper_e);
+		m_elasticForce->computeFe(*stepper_e);
+		m_dampingForce->computeFd(*stepper_e);
 
-		normf = stepper->GlobalForceVec.norm();
+		normf = stepper_e->GlobalForceVec.norm();
 
 		if (iter == 0) 
 		{
@@ -246,16 +262,20 @@ void world::updateTimeStep()
 		}
 
 		normf = 0.0;
-		
 		if (solved == false)
 		{
-			m_inertialForce->computeJi();
+			m_inertialForce->computeJi(*stepper_e);
 			//m_gravityForce->computeJg();
-			m_elasticForce->computeJe();
-			m_dampingForce->computeJd();
+			m_elasticForce->computeJe(*stepper_e);
+			m_dampingForce->computeJd(*stepper_e);
 
-			stepper->integrator(); // Solve equations of motion
-			plate->updateNewtonMethod(stepper->GlobalMotionVec); // new q = old q + Delta q
+			stepper_e->integrator(); // Solve equations of motion
+			plate->updateNewtonMethod(stepper_e->GlobalMotionVec); // new q = old q + Delta q
+			int start = plate->nv * 2;
+			int len   = plate->nv;   // 因为 3nv - 1 - 2nv + 1 = nv
+
+			maxVal = plate->x.segment(start, len).maxCoeff();
+
 			iter++;
 		}
 
@@ -271,10 +291,11 @@ void world::updateTimeStep()
 	if (render) 
 	{
 		cout << "time: " << currentTime << " iter=" << iter << endl;
+		cout << "maxVal: " << maxVal << endl;
 	}
 
 	currentTime += deltaTime;
-		
+
 	timeStep++;
 	
 	if (solved == false)
@@ -305,12 +326,12 @@ MatrixXd world::getScaledCoordinate(int i)
 	xCurrent.col(1) = plate->getVertex(plate->v_triangularElement[i].nv_2);
 	xCurrent.col(2) = plate->getVertex(plate->v_triangularElement[i].nv_3);
 
-	xCurrent(0,0) = xCurrent(0,0) - 0.5;
-	xCurrent(0,1) = xCurrent(0,1) - 0.5;
-	xCurrent(0,2) = xCurrent(0,2) - 0.5;
-	xCurrent(1,0) = xCurrent(1,0) - 0.5;
-	xCurrent(1,1) = xCurrent(1,1) - 0.5;
-	xCurrent(1,2) = xCurrent(1,2) - 0.5;
+	xCurrent(0,0) = xCurrent(0,0) -0.5;
+	xCurrent(0,1) = xCurrent(0,1) -0.5;
+	xCurrent(0,2) = xCurrent(0,2) -0.5;
+	xCurrent(1,0) = xCurrent(1,0) -0.5;
+	xCurrent(1,1) = xCurrent(1,1) -0.5;
+	xCurrent(1,2) = xCurrent(1,2) -0.5;
 	
 	return xCurrent * scaleRendering;
 }
@@ -320,14 +341,14 @@ int world::numPair()
 	return plate->ne;
 }
 
-void world::computeRactionForce()
-{
-	m_elasticForce->computeFe();
+// void world::computeRactionForce()
+// {
+// 	m_elasticForce->computeFe(*stepper_e);
 
-	reForce = VectorXd::Zero(plate->ndof);
+// 	reForce = VectorXd::Zero(plate->ndof_u);
 
-	reForce = m_elasticForce->reForce;
-}
+// 	reForce = m_elasticForce->reForce;
+// }
 
 double world::getPhi(int i)
 {

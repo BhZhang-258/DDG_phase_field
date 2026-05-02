@@ -1,16 +1,19 @@
 #include "timeStepper.h"
 
-timeStepper::timeStepper(elasticPlate &m_plate)
+timeStepper::timeStepper(const SolverConfig& cfg)
 {
-	plate = &m_plate;
+	config = cfg;
+	
 
-	total_dof = plate->ndof;
-	uncon_dof = plate->uncons;
-	con_dof = plate->ncons;
+	total_dof = config.total_dof;
+	uncon_dof = config.unconstrained_dof;
 
 	GlobalForceVec.setZero(uncon_dof, 1);
     GlobalMotionVec.setZero(uncon_dof, 1);
+	ReForceVec.setZero(total_dof, 1);
     //GlobalJacobianMax.setZero(uncon_dof, uncon_dof);
+
+	rowPattern.resize(uncon_dof);
 
     sm1.resize(uncon_dof, uncon_dof);
 
@@ -30,19 +33,54 @@ timeStepper::~timeStepper()
 
 void timeStepper::addForce(int ind, double p)
 {
-	if (plate->getIfConstrained(ind) == 0) // free dof
+	if (config.isConstrained[ind] == 0) // free dof
 	{
-		mappedInd = plate->fullToUnconsMap[ind];
+		mappedInd = config.fullToUncons[ind];
 		GlobalForceVec[mappedInd] = GlobalForceVec[mappedInd] + p; // subtracting elastic force
 	}
+}
+void timeStepper::addFirstJacobian(int ind1, int ind2)
+{
+	mappedInd1 = config.fullToUncons[ind1];
+	mappedInd2 = config.fullToUncons[ind2];
+	if (config.isConstrained[ind1] == 0 && config.isConstrained[ind2] == 0) // both are free
+	{
+		rowPattern[mappedInd1].insert(mappedInd2);
+	}
+    
+}
+
+void timeStepper::finalizePattern()
+{
+    std::vector<Eigen::Triplet<double>> triplets;
+
+	int n = rowPattern.size();
+
+	if (n == 0)	{
+		std::cout << "stiffness matrix sm1 size = " << n << " x " << n << std::endl;
+		std::cerr << "Error: No free degrees of freedom. The system is fully constrained." << std::endl;
+		return;
+	}
+    
+
+    for (int i = 0; i < rowPattern.size(); ++i)
+    {
+        for (auto j : rowPattern[i])
+        {
+            triplets.emplace_back(i, j, 1);
+        }
+    }
+
+    sm1.resize(rowPattern.size(), rowPattern.size());
+    sm1.setFromTriplets(triplets.begin(), triplets.end());
 }
 
 void timeStepper::addJacobian(int ind1, int ind2, double p)
 {
-	mappedInd1 = plate->fullToUnconsMap[ind1];
-	mappedInd2 = plate->fullToUnconsMap[ind2];
+	mappedInd1 = config.fullToUncons[ind1];
+	mappedInd2 = config.fullToUncons[ind2];
 
-	if (plate->getIfConstrained(ind1) == 0 && plate->getIfConstrained(ind2) == 0) // both are free
+	if (config.isConstrained[ind1] == 0 && config.isConstrained[ind2] == 0) // both are free
 	{
 		//GlobalJacobianMax(mappedInd1, mappedInd2) = GlobalJacobianMax(mappedInd1, mappedInd2) + p;
 		sm1.coeffRef(mappedInd1, mappedInd2) += p;

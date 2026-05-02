@@ -1,9 +1,8 @@
 #include "dampingForce.h"
 
-dampingForce::dampingForce(elasticPlate &m_plate, timeStepper &m_stepper, double m_viscosity)
+dampingForce::dampingForce(elasticPlate &m_plate,  double m_viscosity)
 {
 	plate = &m_plate;
-    stepper = &m_stepper;
 
 	viscosity = m_viscosity;
 }
@@ -13,31 +12,31 @@ dampingForce::~dampingForce()
 	;
 }
 
-void dampingForce::computeFd()
+void dampingForce::computeFd(timeStepper &m_stepper)
 {
-	for (int i = 0; i < plate->ndof; i++)
+	for (int i = 0; i < plate->ndof_u; i++)
 	{
 		double localForce = - viscosity * plate->massArray(i) * (plate->x(i) - plate->x0(i)) / plate->dt;
 
-		stepper->addForce(i, - localForce);
+		m_stepper.addForce(i, - localForce);
 	}
 }
 
-void dampingForce::computeJd()
+void dampingForce::computeJd(timeStepper &m_stepper)
 {
-	for (int i = 0; i < plate->ndof; i++)
+	for (int i = 0; i < plate->ndof_u; i++)
 	{
 		double localJacob = - viscosity * plate->massArray(i) / plate->dt;
 
-		stepper->addJacobian(i, i, - localJacob);
+		m_stepper.addJacobian(i, i, - localJacob);
 	}
 	
 }
 
-void dampingForce::setFirstJacobian()
+void dampingForce::setFirstJacobian(timeStepper &m_stepper)
 {
-	for (int i = 0; i < plate->ndof; i++)
+	for (int i = 0; i < plate->ndof_u; i++)
 	{
-		stepper->addJacobian(ind, ind, 1);
+		m_stepper.addFirstJacobian(i, i);
 	}
 }

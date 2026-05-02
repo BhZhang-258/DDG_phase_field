@@ -8,10 +8,10 @@
 class externalGravityForce
 {
 public:
-	externalGravityForce(elasticPlate &m_plate, timeStepper &m_stepper, Vector3d m_gVector);
+	externalGravityForce(elasticPlate &m_plate,  Vector3d m_gVector);
 	~externalGravityForce();
-	void computeFg();
-	void computeJg();
+	void computeFg(timeStepper &m_stepper);
+	void computeJg(timeStepper &m_stepper);
 
 	void setGravity();
 
@@ -19,7 +19,6 @@ public:
 	
 private:
 	elasticPlate *plate;
-	timeStepper *stepper;
 	
     VectorXd massGravity;
 };
