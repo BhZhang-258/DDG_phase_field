@@ -65,6 +65,8 @@ private:
 	double ell;
 	double eta;
 
+	int outputFreq;
+
 	int Nstep;
 	int timeStep;
 

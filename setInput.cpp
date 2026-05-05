@@ -21,6 +21,7 @@ setInput::setInput()
   AddOption("Gc", "Gc", Gc);
   AddOption("ell", "ell", ell);
   AddOption("eta", "eta", eta);
+  AddOption("outputFreq", "output frequency (steps)", outputFreq);
 }
 
 setInput::~setInput()

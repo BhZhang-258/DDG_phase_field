@@ -56,6 +56,7 @@ private:
   double Gc;
   double ell;
   double eta;
+  int outputFreq;
 };
 
 #include "setInput.tcc"

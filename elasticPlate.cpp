@@ -164,10 +164,12 @@ void elasticPlate::setOneVertexBoundaryCondition(double position, int i, int k)
 
 void elasticPlate::setPhiBoundaryCondition(double position, int i)
 {
-	isConstrained_u[i] = 1;
+	isConstrained_phi[i] = 1;
 
 	// Store in the constrained dof vector
-	x(i) = position;
+	phi(i) = position;
+	phi_old(i) = position;
+	phi_prev(i) = position;
 }
 
 Vector2d elasticPlate::getVertex(int i)
@@ -245,6 +247,8 @@ void elasticPlate::updateTimeStep()
 
 	// update x
 	x0 = x;
+	phi_prev = phi_old;
+	phi_old = phi;
 
 	// make sure phi cannot be larger than 1.0
 	// for (int i = 0; i < nv; i++)
@@ -268,20 +272,36 @@ void elasticPlate::updateGuess()
 	}
 }
 
-void elasticPlate::updateNewtonMethod(VectorXd m_motion)
+void elasticPlate::updateNewtonMethod(VectorXd m_motion, double alpha)
 {
 	for (int c=0; c < uncons_u; c++)
 	{
-		x[unconstrainedMap_u[c]] -= m_motion[c];
+		x[unconstrainedMap_u[c]] -= alpha * m_motion[c];
 	}
 }
-void elasticPlate::updateNewtonMethod_phi(VectorXd m_motion)
+void elasticPlate::updateNewtonMethod_phi(VectorXd m_motion, double alpha)
 {
 	for (int c=0; c < uncons_phi; c++)
 	{
-		phi[unconstrainedMap_phi[c]] -= m_motion[c];
+		int gid = unconstrainedMap_phi[c];
+		phi[gid] -= alpha * m_motion[c];
+
+		// Enforce monotonic increase compared to previous time step
+		if (phi[gid] < phi_old[gid])
+		{
+			phi[gid] = phi_old[gid];
+		}
+
+		// Clamp phi to [0,1]
+		if (phi[gid] < 0.0) phi[gid] = 0.0;
+		if (phi[gid] > 1.0) phi[gid] = 1.0;
 	}
 }
+
+void elasticPlate::backupState_u()  { x_backup = x; }
+void elasticPlate::restoreState_u() { x = x_backup; }
+void elasticPlate::backupState_phi()  { phi_backup = phi; }
+void elasticPlate::restoreState_phi() { phi = phi_backup; }
 
 void elasticPlate::setupGeometry()
 {
@@ -392,6 +412,12 @@ void elasticPlate::buildElemet()
 		0,   	0,   	2*mu,  	0,
 		0,   	2*mu,  	0,   	0,
 		0, 		0,      0,      2*mu;
+
+		// cerr << "C1: " << m_basicElement.C1 << endl;
+		// cerr << "C2: " << m_basicElement.C2 << endl;
+		// cerr << "C: " << m_basicElement.C << endl;
+		// cerr << "C1+C2: " << m_basicElement.C1 + m_basicElement.C2 << endl;
+
 		//
 		// Mphi
 		// --------------------------
@@ -429,7 +455,7 @@ void elasticPlate::buildElemet()
 
 	//
 		
-		m_basicElement.arrayIndex = VectorXi::Zero(9);
+		m_basicElement.arrayIndex = VectorXi::Zero(6);
 
 		m_basicElement.arrayIndex(0) = 2 * m_basicElement.nv_1 + 0;
 		m_basicElement.arrayIndex(1) = 2 * m_basicElement.nv_1 + 1;
@@ -439,7 +465,12 @@ void elasticPlate::buildElemet()
 
 		m_basicElement.arrayIndex(4) = 2 * m_basicElement.nv_3 + 0;
 		m_basicElement.arrayIndex(5) = 2 * m_basicElement.nv_3 + 1;
-
+		
+		m_basicElement.arrayIndex_phi = Vector3i(
+			m_basicElement.nv_1,
+			m_basicElement.nv_2,
+			m_basicElement.nv_3
+		);
 		// m_basicElement.arrayIndex(6) = 2 * nv + m_basicElement.nv_1;
 		// m_basicElement.arrayIndex(7) = 2 * nv + m_basicElement.nv_2;
 		// m_basicElement.arrayIndex(8) = 2 * nv + m_basicElement.nv_3;

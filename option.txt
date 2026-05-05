@@ -1,12 +1,12 @@
 render 1
 saveData 1
-YoungM 2e6
+YoungM 210e6
 totalTime 1
 deltaTime 1e-3
 density 1000.0
 stol 1e-3
 forceTol 1e-3
-maxIter 10
+maxIter 50
 viscosity 0.1
 scaleRendering 1
 gVector 0.0 0.0 0.0
@@ -14,4 +14,5 @@ Possion 0.3
 Gc 2700.0
 ell 0.015
 eta 1e-4
+outputFreq 10
 

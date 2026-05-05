@@ -13,8 +13,11 @@ public:
 	~elasticForce();
 	void computeFe(timeStepper &m_stepper);
     void computeFphi(timeStepper &m_stepper);
+    void updateHistoryField();
     void computeJe(timeStepper &m_stepper);
     void setFirstJacobian(timeStepper &m_stepper);
+    
+    void setFirstJacobian_phi(timeStepper &m_stepper);
     
     void testFe();
 
@@ -22,6 +25,7 @@ public:
 
 private:
 	elasticPlate *plate;
+    VectorXd lastEelPlus;
 
 
     double Gc_input;
@@ -36,6 +40,12 @@ private:
     MatrixXd Hel_minus; 
 
    void triElementElasticOnly(int idx, double &Eel_plus, VectorXd &fel_plus, MatrixXd &Hel_plus, double &Eel_minus, VectorXd &fel_minus, MatrixXd &Hel_minus);
+
+    void triElementElasticTotal(
+        int idx,
+        double& Eel_total,
+        VectorXd& fel_total,
+        MatrixXd& Hel_total);
 
     void triElementElasticOnly(
         int idx,

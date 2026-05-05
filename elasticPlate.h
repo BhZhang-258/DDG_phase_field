@@ -24,7 +24,7 @@ struct basicElement
 	Matrix3d Mphi;
 	Matrix<double, 2, 3> Bphi;
 	Matrix3d Kphi;
-	double H_history;
+	double historyH;
 
 	VectorXi arrayIndex;
 	Vector3i arrayIndex_phi;
@@ -77,7 +77,9 @@ class elasticPlate
 
 	VectorXd phi;       
 	VectorXd phi_old;   
-	VectorXd phi_prev;  
+	VectorXd phi_prev;
+	VectorXd x_backup;
+	VectorXd phi_backup;  
 	// VectorXd dphi;      
 
 	void setupGeometry();
@@ -100,17 +102,21 @@ class elasticPlate
 
 	void updateTimeStep();
 	void updateGuess();
-	void updateNewtonMethod(VectorXd m_motion);
-    void updateNewtonMethod_phi(VectorXd m_motion);
+	void updateNewtonMethod(VectorXd m_motion, double alpha = 1.0);
+    void updateNewtonMethod_phi(VectorXd m_motion, double alpha = 1.0);
     void prepareForIteration();
+
+    void backupState_u();
+    void restoreState_u();
+    void backupState_phi();
+    void restoreState_phi();
 
     VectorXd massArray;
 	void setupMass();
 
 	void buildElemet();
 
-    Matrix2d getFFF(int idx, Matrix<double, 4, 9> *derivative, std::vector<Matrix<double, 9, 9>> *hessian);
-
+    
 private:
 };
 

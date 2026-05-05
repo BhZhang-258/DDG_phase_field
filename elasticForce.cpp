@@ -4,6 +4,7 @@
 elasticForce::elasticForce(elasticPlate &m_plate,  double m_Gc, double m_ell, double m_eta)
 {
 	plate = &m_plate;
+    lastEelPlus = VectorXd::Zero(plate->ne);
 
 
     Gc_input = m_Gc;
@@ -40,6 +41,23 @@ void elasticForce::computeFe(timeStepper &m_stepper)
         Hel_minus.setZero();
 
         triElementElasticOnly(i, Eel_plus, fel_plus, Hel_plus, Eel_minus, fel_minus, Hel_minus);
+		lastEelPlus(i) = Eel_plus;
+
+        
+        double Eel_total;
+        VectorXd fel_total;
+        MatrixXd Hel_total;
+        triElementElasticTotal(i, Eel_total, fel_total, Hel_total);
+
+        double E_split = Eel_plus + Eel_minus;
+        VectorXd f_split = fel_plus + fel_minus;
+        MatrixXd H_split = Hel_plus + Hel_minus;
+
+        double dE = abs(E_split - Eel_total);
+        double dF = (f_split - fel_total).norm();
+        double dH = (H_split - Hel_total).norm();
+
+            
 
         double phiBar = (Phi(0) + Phi(1) + Phi(2)) / 3.0;
         double oneMinusPhiBar = 1.0 - phiBar;
@@ -61,14 +79,14 @@ void elasticForce::computeFe(timeStepper &m_stepper)
 
         // Hxx = g * hessian1
         hessian.block(0, 0, 6, 6) = g * Hel_plus + Hel_minus;
+        hessian.block(0, 0, 6, 6) = g * Hel_total;
+
 
         VectorXi arrayIndex = plate->v_triangularElement[i].arrayIndex;
 
         for (int j = 0; j < 6; j++)
         {
             m_stepper.addForce( arrayIndex(j), grad(j) );
-
-            reForce(arrayIndex(j)) = reForce(arrayIndex(j)) + grad(j);
         }
 
         for (int j = 0; j < 6; j++)
@@ -82,66 +100,62 @@ void elasticForce::computeFe(timeStepper &m_stepper)
 
     }
 }
-void elasticForce::computeFphi( timeStepper &m_stepper)
+void elasticForce::updateHistoryField()
 {
-    
-
     for (int i = 0; i < plate->ne; i++)
     {
+        plate->v_triangularElement[i].historyH = max(
+			plate->v_triangularElement[i].historyH,
+			lastEelPlus(i) / plate->v_triangularElement[i].area);
+    }
+}
 
-        // H历史变量在哪里
+void elasticForce::computeFphi(timeStepper &m_stepper)
+{
+    for (int i = 0; i < plate->ne; i++)
+    {
         Vector3d Phi;
         Phi(0) = plate->getPhi(plate->v_triangularElement[i].nv_1);
         Phi(1) = plate->getPhi(plate->v_triangularElement[i].nv_2);
-        Phi(2) = plate->getPhi(plate->v_triangularElement[i].nv_3);        
+        Phi(2) = plate->getPhi(plate->v_triangularElement[i].nv_3);
 
-
-        double Ephi;
+        double Ephi = 0.0;
         Vector3d fphi;
         Matrix3d Hphi;
-        phaseFieldSurfaceEnergyDerivatives(i, Phi, Gc_input, ell_input, Ephi, fphi, Hphi);
 
+        fphi.setZero();
+        Hphi.setZero();
 
-        double phiBar = (Phi(0) + Phi(1) + Phi(2)) / 3.0;
-        double oneMinusPhiBar = 1.0 - phiBar;
+        phaseFieldSurfaceEnergyDerivatives(
+            i,
+            Phi,
+            Gc_input,
+            ell_input,
+            Ephi,
+            fphi,
+            Hphi
+        );
 
-        double g = oneMinusPhiBar * oneMinusPhiBar + eta_input;
-        
-        // dg/dPhi
+        const double area = plate->v_triangularElement[i].area;
+        const double H = plate->v_triangularElement[i].historyH;
+
+        const double phiBar = Phi.mean();
+        const double oneMinusPhiBar = 1.0 - phiBar;
+
         Vector3d dg;
         dg.setConstant(-2.0 * oneMinusPhiBar / 3.0);
 
-        // d2g/dPhi2
         Matrix3d d2g;
-        d2g.setConstant(2.0 / 9.0); 
+        d2g.setConstant(2.0 / 9.0);
 
-        double totalEnergy = Eel_plus * g + Eel_minus + Ephi;
-        double scale = ell_input / Gc_input;
-
-
-        VectorXd grad;
-        grad.resize(3);
-        grad.setZero();
-
-        // dE/dPhi = E1 * dg + grad2
-        grad.segment(0, 3) =  Eel_plus * dg + fphi;
-
-
-        MatrixXd hessian;
-        hessian.resize(3, 3);
-        hessian.setZero();
-
-        // Hxx = g * hessian1
-        hessian.block(0, 0, 3, 3) = Eel_plus* d2g + Hphi;
-
+        Vector3d grad = H * area * dg + fphi;
+        Matrix3d hessian = H * area * d2g + Hphi;
 
         VectorXi arrayIndex = plate->v_triangularElement[i].arrayIndex_phi;
 
         for (int j = 0; j < 3; j++)
         {
-            m_stepper.addForce( arrayIndex(j), grad(j) );
-
-            reForce(arrayIndex(j)) = reForce(arrayIndex(j)) + grad(j);
+            m_stepper.addForce(arrayIndex(j), grad(j));
         }
 
         for (int j = 0; j < 3; j++)
@@ -151,8 +165,6 @@ void elasticForce::computeFphi( timeStepper &m_stepper)
                 m_stepper.addJacobian(arrayIndex(j), arrayIndex(k), hessian(j,k) );
             }
         }
-        
-
     }
 }
 void elasticForce::computeJe(timeStepper &m_stepper)
@@ -169,6 +181,21 @@ void elasticForce::setFirstJacobian(timeStepper &m_stepper)
 		for (int j = 0; j < 6; j++)
         {
             for (int k = 0; k < 6; k++)
+            {
+                m_stepper.addFirstJacobian(arrayIndex(j), arrayIndex(k));
+            }
+        }
+	}
+}
+void elasticForce::setFirstJacobian_phi(timeStepper &m_stepper)
+{
+	for (int i = 0; i < plate->ne; i++)
+	{
+		VectorXi arrayIndex = plate->v_triangularElement[i].arrayIndex_phi;
+
+		for (int j = 0; j < 3; j++)
+        {
+            for (int k = 0; k < 3; k++)
             {
                 m_stepper.addFirstJacobian(arrayIndex(j), arrayIndex(k));
             }
@@ -213,22 +240,19 @@ void elasticForce::triElementElasticOnly(
 		
 		Matrix2d s =  A - abar;
 		Vector4d eps = Eigen::Map<Vector4d>(s.data());
-        // Matrix2d S_edge = abarinv *(A - abar);
 		Matrix2d S_mat = M * abarinv *(A - abar) * Minv;
         Matrix2d S_sym = 0.5 * (S_mat + S_mat.transpose());
 
         SelfAdjointEigenSolver<Matrix2d> solver(S_sym);
-        // cout << "eig of S_mat:\n" << solver.eigenvalues() << endl;
 
         if (solver.info() != Success) {
             cerr << "特征值分解失败！" << endl;
             exit(1);
         }
         Vector2d lambdas = solver.eigenvalues(); 
-        Matrix2d Q = solver.eigenvectors();      
+        Matrix2d Q = solver.eigenvectors();
 
-        // cout << "特征值 L (向量形式):\n" << lambdas << "\n\n";
-        // cout << "特征向量 Q:\n" << Q << "\n\n";
+        
 
         // 
         Vector2d lambdas_plus,lambdas_minus;
@@ -239,11 +263,7 @@ void elasticForce::triElementElasticOnly(
         lambdas_minus(1) = min(lambdas(1), 0.0);
 
         // 
-        // Matrix2d S_mat_plus = Q * lambdas_plus.asDiagonal() * Q.transpose();
-        // Matrix2d S_mat_minus = Q * lambdas_minus.asDiagonal() * Q.transpose();
-
-        // cout << "拉伸部分 S_mat_plus:\n" << S_mat_plus << endl;
-        // cout << "压缩部分 S_mat_minus:\n" << S_mat_minus << endl;
+        
 
         
         Vector2d I_plus,I_minus;
@@ -257,7 +277,7 @@ void elasticForce::triElementElasticOnly(
 
         Matrix4d kronc_pl = Geometry::kron( Minv.transpose(), P1 * M * abarinv); 
         Matrix4d kronc_mi = Geometry::kron( Minv.transpose(), P2 * M * abarinv);
-        Matrix4d kronc = Geometry::kron( Minv.transpose(), M * abarinv);
+        Matrix4d kronc = Geometry::kron( Minv.transpose(),  M * abarinv);
 		
 
 		// // stvk energy/grad/hessian  for epsilon inner product <eps,eps> with C as the stiffness matrix
@@ -265,27 +285,18 @@ void elasticForce::triElementElasticOnly(
         Matrix<double, 6, 1> derivative1;
         Matrix<double, 6, 6> hessian1;
         double energy1 = stvk(plate->v_triangularElement[idx].C1, kronc, eps, eps, fFFderiv, fFFderiv, fFFhess, fFFhess, &derivative1, &hessian1);
-        // cout << "\nplus part energy:"  << std::endl;
-        // cout << "energy:\n" << energy1 << std::endl;
-        // cout << "derivative:\n" << derivative1.transpose() << std::endl;
-        // cout << "hessian:\n" << hessian1 << std::endl;
+       
 
         // mu energy for plus part
         Matrix<double, 6, 1> derivative2;
         Matrix<double, 6, 6> hessian2;
         double energy2 = stvk(plate->v_triangularElement[idx].C2, kronc_pl, eps, eps, fFFderiv, fFFderiv, fFFhess, fFFhess, &derivative2, &hessian2);
-        // cout << "\nminus part energy:"  << std::endl;
-        // cout << "energy:\n" << energy2 << std::endl;
-        // cout << "derivative:\n" << derivative2.transpose() << std::endl;
-        // cout << "hessian:\n" << hessian2 << std::endl;
+        
         // mu energy for minus part
         Matrix<double, 6, 1> derivative3;
         Matrix<double, 6, 6> hessian3;        
         double energy3 = stvk(plate->v_triangularElement[idx].C2, kronc_mi, eps, eps, fFFderiv, fFFderiv, fFFhess, fFFhess, &derivative3, &hessian3);
-        // cout << "\nminus part energy:"  << std::endl;
-        // cout << "energy:\n" << energy3 << std::endl;
-        // cout << "derivative:\n" << derivative3.transpose() << std::endl;
-        // cout << "hessian:\n" << hessian3 << std::endl;
+        
 
         double coeff = 1.0/4.0 * 1;  // plane stress/strain coefficient
 
@@ -314,6 +325,51 @@ void elasticForce::triElementElasticOnly(
         }
         
         
+    }
+
+void elasticForce::triElementElasticTotal(
+        int idx,
+        double& Eel_total,
+        VectorXd& fel_total,
+        MatrixXd& Hel_total)
+    {
+        Matrix2d A;
+        Matrix<double, 4, 6> fFFderiv;
+        std::vector<Matrix<double, 6, 6> > fFFhess;
+        Vector2d x1 = plate->getVertex(plate->v_triangularElement[idx].nv_1);
+        Vector2d x2 = plate->getVertex(plate->v_triangularElement[idx].nv_2);
+        Vector2d x3 = plate->getVertex(plate->v_triangularElement[idx].nv_3);
+
+        A = Geometry::firstFundamentalForm( x1 , x2 , x3 , &fFFderiv,  &fFFhess );
+
+        Matrix2d M = plate->v_triangularElement[idx].M;
+        Matrix2d Minv = M.inverse();
+        Matrix2d abar = plate->v_triangularElement[idx].abar;
+        Matrix2d abarinv = plate->v_triangularElement[idx].abarinv;
+
+        double dA = plate->v_triangularElement[idx].area;
+
+        Matrix2d s = A - abar;
+        Vector4d eps = Eigen::Map<Vector4d>(s.data());
+
+        // Full (unsplit) projection: no spectral decomposition
+        Matrix4d kronc = Geometry::kron( Minv.transpose(), M * abarinv);
+
+        // Total material stiffness = C1 (lambda) + C2 (mu)
+        Matrix4d C_total = plate->v_triangularElement[idx].C1
+                         + plate->v_triangularElement[idx].C2;
+
+        Matrix<double, 6, 1> derivative;
+        Matrix<double, 6, 6> hessian;
+        double energy = stvk(C_total, kronc, eps, eps,
+                             fFFderiv, fFFderiv, fFFhess, fFFhess,
+                             &derivative, &hessian);
+
+        double coeff = 1.0 / 4.0;
+
+        Eel_total = coeff * dA * energy;
+        fel_total = coeff * dA * derivative;
+        Hel_total = coeff * dA * hessian;
     }
 
 void elasticForce::phaseFieldSurfaceEnergyDerivatives(

@@ -24,6 +24,7 @@ world::world(setInput &m_inputData)
 	Gc = m_inputData.GetScalarOpt("Gc");
 	ell = m_inputData.GetScalarOpt("ell");
 	eta = m_inputData.GetScalarOpt("eta");
+	outputFreq = m_inputData.GetIntOpt("outputFreq");
 
 	stretchingDistance = 0.0;
 }
@@ -41,78 +42,61 @@ bool world::isRender()
 void world::OpenFile(ofstream &outfile)
 {
 	if (saveData==false) return;
-	
-	int systemRet = system("mkdir datafiles"); //make the directory
+
+	int systemRet = system("mkdir -p datafiles"); //make the directory
 	if(systemRet == -1)
 	{
 		cout << "Error in creating directory\n";
 	}
-
-	// Open an input file named after the current time
-	ostringstream name;
-	name.precision(6);
-	name << fixed;
-
-    name << "datafiles/simDiscretePlate";
-    name << ".txt";
-
-	outfile.open(name.str().c_str());
-	outfile.precision(10);	
+	// Per-step output files are handled in CoutData()
 }
 
 void world::CloseFile(ofstream &outfile)
 {
-	if (saveData==false) 
-	{
-		return;
-	}
+	// Per-step files are closed in CoutData()
 }
 
 void world::CoutData(ofstream &outfile)
 {
-	if (saveData==false) 
+	if (saveData == false) 
 	{
 		return;
 	}
 
-	if ( timeStep % 20 != 0)
+	if (outputFreq <= 0) return;
+
+	if (timeStep % outputFreq != 0)
 	{
 		return;
 	}
 
-	
-	// computeRactionForce();
+	// Build filename with step number
+	ostringstream name;
+	name << "datafiles/step_" << timeStep << ".txt";
 
-	// double totalForce;
-
-	// totalForce = 0.0;
-
-	// for (int i = 0; i < plate->nv; i++)
-	// {
-	// 	Vector2d xS = plate->getVertexStart(i);
-
-	// 	if (abs(xS(1)-1.0) < 1e-8)
-	// 	{
-	// 		totalForce = totalForce + reForce(2 * i + 1);
-	// 	}
-	// }
-
-	// outfile << stretchingDistance << " " << totalForce << endl;
-
-
-	/*
-	//if (timeStep == Nstep)
+	ofstream stepFile(name.str().c_str());
+	if (!stepFile.is_open())
 	{
-		for (int i = 0; i < plate->nv; i++)
-		{
-			Vector2d xCurrent = plate->getVertex(i);
-			double phi_local = plate->getPhi(i);
-
-			outfile << stretchingDistance << " " << xCurrent(0) << " " << xCurrent(1) << " " << phi_local << endl;
-		}
+		cerr << "Failed to open output file: " << name.str() << endl;
+		return;
 	}
-	*/
+	stepFile.precision(10);
 
+	// Header: time step, current time, number of nodes
+	stepFile << "# timeStep " << timeStep << " currentTime " << currentTime << endl;
+	stepFile << "# nv " << plate->nv << endl;
+	stepFile << "# x y phi" << endl;
+
+	// Write node data: current position (x, y) and phase field (phi)
+	for (int i = 0; i < plate->nv; i++)
+	{
+		Vector2d xCurrent = plate->getVertex(i);
+		double phi_local = plate->getPhi(i);
+
+		stepFile << xCurrent(0) << " " << xCurrent(1) << " " << phi_local << endl;
+	}
+
+	stepFile.close();
 }
 
 void world::setPlateStepper()
@@ -134,8 +118,12 @@ void world::setPlateStepper()
 	stepper_e = new timeStepper(config_e);
 
 	SolverConfig config_phi;
-
-	// stepper_phi = new timeStepper(config_phi);
+	config_phi.total_dof = plate->ndof_phi;
+	config_phi.unconstrained_dof =  plate->uncons_phi;
+	config_phi.fullToUncons = plate->fullToUnconsMap_phi;
+	config_phi.isConstrained = plate->isConstrained_phi;
+	
+	stepper_phi = new timeStepper(config_phi);
 
 	// set up force
 	m_inertialForce = new inertialForce(*plate);
@@ -153,21 +141,45 @@ void world::setPlateStepper()
 	// set up pardiso
 	stepper_e->first_time_PARDISO_setup();
 
-
-	for (int i=0; i < plate->nv ; i++)
+	if (plate->uncons_phi > 0)
 	{
-		Vector2d xCurrent = plate->getVertex(i);
-		Vector2d xtemp;
-		xtemp(0) = xCurrent(0) /2; 
-		xtemp(1) = xCurrent(1) *2 + xCurrent(0); 
-		plate->x.segment(2*i, 2) = xtemp;
+		m_elasticForce->setFirstJacobian_phi(*stepper_phi);
+		stepper_phi->finalizePattern();
+		stepper_phi->first_time_PARDISO_setup();
 	}
 
-	m_elasticForce->computeFe(*stepper_e);
+	// a trial solution for our solution x
+	// for (int i=0; i < plate->nv ; i++)
+	// {
+	// 	Vector2d xCurrent = plate->getVertex(i);
+	// 	Vector2d xtemp;
+	// 	xtemp(0) = xCurrent(0) /2; 
+	// 	xtemp(1) = xCurrent(1) *2 + xCurrent(0); 
+	// 	plate->x.segment(2*i, 2) = xtemp;
+	// }
+	// // test computeFe
+	// m_elasticForce->computeFe(*stepper_e);
 	// time step 
 	Nstep = totalTime / deltaTime;
 	timeStep = 0;
 	currentTime = 0.0;
+
+	// Write mesh connectivity once for post-processing
+	if (saveData)
+	{
+		ofstream meshFile("datafiles/mesh.txt");
+		meshFile.precision(10);
+		meshFile << "# nv ne" << endl;
+		meshFile << plate->nv << " " << plate->ne << endl;
+		meshFile << "# element connectivity (0-based node indices)" << endl;
+		for (int i = 0; i < plate->ne; i++)
+		{
+			meshFile << plate->v_triangularElement[i].nv_1 << " "
+					 << plate->v_triangularElement[i].nv_2 << " "
+					 << plate->v_triangularElement[i].nv_3 << endl;
+		}
+		meshFile.close();
+	}
 
 
 }
@@ -231,9 +243,13 @@ void world::updateTimeStep()
 	bool solved = false;
 	
 	int iter = 0;
+	int iter_phi = 0;
 
 	// Start with a trial solution for our solution x
 	plate->updateGuess(); // x = x0 + u * dt
+
+	const double armijo_c = 1e-4;
+	const int    max_ls   = 8;
 		
 	while (solved == false)
 	{
@@ -261,21 +277,43 @@ void world::updateTimeStep()
 			solved = true;
 		}
 
-		normf = 0.0;
 		if (solved == false)
 		{
+			double R0 = normf;  // residual before step
+
 			m_inertialForce->computeJi(*stepper_e);
 			//m_gravityForce->computeJg();
 			m_elasticForce->computeJe(*stepper_e);
 			m_dampingForce->computeJd(*stepper_e);
 
 			stepper_e->integrator(); // Solve equations of motion
-			plate->updateNewtonMethod(stepper_e->GlobalMotionVec); // new q = old q + Delta q
-			int start = plate->nv * 2;
-			int len   = plate->nv;   // 因为 3nv - 1 - 2nv + 1 = nv
+			VectorXd direction = stepper_e->GlobalMotionVec;
 
-			maxVal = plate->x.segment(start, len).maxCoeff();
+			// --- Backtracking line search ---
+			plate->backupState_u();
+			double alpha = 1.0;
+			bool ls_ok = false;
+			for (int ls = 0; ls < max_ls; ls++)
+			{
+				plate->restoreState_u();
+				plate->updateNewtonMethod(direction, alpha);
 
+				stepper_e->setZero();
+				m_inertialForce->computeFi(*stepper_e);
+				m_elasticForce->computeFe(*stepper_e);
+				m_dampingForce->computeFd(*stepper_e);
+				double Rnew = stepper_e->GlobalForceVec.norm();
+
+				if (Rnew <= (1.0 - armijo_c * alpha) * R0)
+				{
+					ls_ok = true;
+					break;
+				}
+				alpha *= 0.5;
+			}
+			// If no sufficient decrease, still keep last trial (best effort)
+			// State is at the accepted α (or last trial)
+			
 			iter++;
 		}
 
@@ -286,11 +324,80 @@ void world::updateTimeStep()
 		}
 	}
 
+	if (plate->uncons_phi > 0)
+	{
+		m_elasticForce->updateHistoryField();
+
+		double normphi = forceTol * 10.0;
+		double normphi0 = 0.0;
+		bool solved_phi = false;
+		iter_phi = 0;
+
+		while (solved_phi == false)
+		{
+			plate->prepareForIteration();
+
+			stepper_phi->setZero();
+			m_elasticForce->computeFphi(*stepper_phi);
+
+			normphi = stepper_phi->GlobalForceVec.norm();
+
+			if (iter_phi == 0)
+			{
+				normphi0 = normphi;
+			}
+
+			if (normphi <= forceTol)
+			{
+				solved_phi = true;
+			}
+			else if (iter_phi > 0 && normphi <= normphi0 * stol)
+			{
+				solved_phi = true;
+			}
+
+			if (solved_phi == false)
+			{
+				double R0_phi = normphi;
+
+				stepper_phi->integrator();
+				VectorXd direction_phi = stepper_phi->GlobalMotionVec;
+
+				// --- Backtracking line search for phase-field ---
+				plate->backupState_phi();
+				double alpha_phi = 1.0;
+				for (int ls = 0; ls < max_ls; ls++)
+				{
+					plate->restoreState_phi();
+					plate->updateNewtonMethod_phi(direction_phi, alpha_phi);
+
+					stepper_phi->setZero();
+					m_elasticForce->computeFphi(*stepper_phi);
+					double Rnew_phi = stepper_phi->GlobalForceVec.norm();
+
+					if (Rnew_phi <= (1.0 - armijo_c * alpha_phi) * R0_phi)
+					{
+						break;
+					}
+					alpha_phi *= 0.5;
+				}
+
+				iter_phi++;
+			}
+			maxVal = plate->phi.maxCoeff();
+			if (iter_phi > maxIter)
+			{
+				cout << "Error. Phase-field could not converge. Exiting.\n";
+				break;
+			}
+		}
+	}
+
 	plate->updateTimeStep();
 
 	if (render) 
 	{
-		cout << "time: " << currentTime << " iter=" << iter << endl;
+		cout << "time: " << currentTime << " iter_u=" << iter << " iter_phi=" << iter_phi << endl;
 		cout << "maxVal: " << maxVal << endl;
 	}
 
@@ -341,14 +448,7 @@ int world::numPair()
 	return plate->ne;
 }
 
-// void world::computeRactionForce()
-// {
-// 	m_elasticForce->computeFe(*stepper_e);
 
-// 	reForce = VectorXd::Zero(plate->ndof_u);
-
-// 	reForce = m_elasticForce->reForce;
-// }
 
 double world::getPhi(int i)
 {
