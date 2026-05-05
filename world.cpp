@@ -215,11 +215,15 @@ void world::plateBoundaryCondition()
 
 void world::updateTimeStep()
 {
+	if (stretchingDistance <= 0.005)
+	{
+		stretchingDistance += 1e-1 * deltaTime;
+	}
+	else
+	{
+		stretchingDistance += 0.2e-2 * deltaTime;
+	}
 	
-	stretchingDistance = stretchingDistance + 1e-2 * deltaTime;
-		
-	
-
 	for (int i = 0; i < loadid.size(); i++)
 	{
 		
@@ -230,10 +234,6 @@ void world::updateTimeStep()
 			plate->setVertexBoundaryCondition(xCurrent, loadid[i]);
 		
 	}
-	// cerr<< "stretchingDistance: " << stretchingDistance << endl;
-	// cerr<< "current position: " << loadid.size() << endl;
-	// Vector2d xCurrent =  plate->getVertex(loadid[0]);
-	// cerr<< "current position: " << xCurrent.transpose() << endl;
 	
 	
 
@@ -249,7 +249,7 @@ void world::updateTimeStep()
 	plate->updateGuess(); // x = x0 + u * dt
 
 	const double armijo_c = 1e-4;
-	const int    max_ls   = 8;
+	const int    max_ls   = 4;
 		
 	while (solved == false)
 	{
@@ -282,7 +282,6 @@ void world::updateTimeStep()
 			double R0 = normf;  // residual before step
 
 			m_inertialForce->computeJi(*stepper_e);
-			//m_gravityForce->computeJg();
 			m_elasticForce->computeJe(*stepper_e);
 			m_dampingForce->computeJd(*stepper_e);
 
@@ -374,7 +373,7 @@ void world::updateTimeStep()
 					stepper_phi->setZero();
 					m_elasticForce->computeFphi(*stepper_phi);
 					double Rnew_phi = stepper_phi->GlobalForceVec.norm();
-
+					maxVal = plate->phi.maxCoeff();
 					if (Rnew_phi <= (1.0 - armijo_c * alpha_phi) * R0_phi)
 					{
 						break;
@@ -384,7 +383,7 @@ void world::updateTimeStep()
 
 				iter_phi++;
 			}
-			maxVal = plate->phi.maxCoeff();
+			
 			if (iter_phi > maxIter)
 			{
 				cout << "Error. Phase-field could not converge. Exiting.\n";

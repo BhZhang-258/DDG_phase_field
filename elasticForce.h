@@ -39,7 +39,12 @@ private:
     VectorXd fel_minus;
     MatrixXd Hel_minus; 
 
-   void triElementElasticOnly(int idx, double &Eel_plus, VectorXd &fel_plus, MatrixXd &Hel_plus, double &Eel_minus, VectorXd &fel_minus, MatrixXd &Hel_minus);
+    void triElementElasticOnly(int idx, double &Eel_plus, VectorXd &fel_plus, MatrixXd &Hel_plus, double &Eel_minus, VectorXd &fel_minus, MatrixXd &Hel_minus);
+
+    void triElementElasticAmor(
+        int idx,
+        double& Eel_plus, VectorXd& fel_plus, MatrixXd& Hel_plus,
+        double& Eel_minus, VectorXd& fel_minus, MatrixXd& Hel_minus);
 
     void triElementElasticTotal(
         int idx,

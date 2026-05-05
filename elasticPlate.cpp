@@ -230,38 +230,26 @@ void elasticPlate::updateTimeStep()
 	// compute velocity
 	u = (x - x0) / dt;
 
-
-	// make sure th phi can only increase
-	// for (int i = 0; i < nv; i++)
-	// {
-	// 	double localPhi_now = x(2 * nv + i);
-	// 	double localPhi_before = x0(2 * nv + i);
-
-	// 	if (localPhi_before > localPhi_now)
-	// 	{
-	// 		x(2 * nv + i) = localPhi_before;
-	// 		x0(2 * nv + i) = localPhi_now;
-	// 	}
-
-	// }
-
-	// update x
 	x0 = x;
+
+	for (int c=0; c < uncons_phi; c++)
+	{
+		int gid = unconstrainedMap_phi[c];
+		if (phi[gid] < phi_old[gid])
+		{
+			phi[gid] = phi_old[gid];
+		}
+		
+		if (phi[gid] > 1.0) phi[gid] = 1.0;
+		if (phi[gid] < 0.0) phi[gid] = 0.0;
+	}
+
 	phi_prev = phi_old;
 	phi_old = phi;
-
-	// make sure phi cannot be larger than 1.0
-	// for (int i = 0; i < nv; i++)
-	// {
-	// 	double localPhi = getPhi(i);
-
-	// 	if (localPhi > 1.0)
-	// 	{
-	// 		x(2 * nv + i) = 1.0;
-	// 		x0(2 * nv + i) = 1.0;
-	// 	}
-
-	// }
+	
+	
+	
+	
 }
 
 void elasticPlate::updateGuess()
@@ -286,15 +274,9 @@ void elasticPlate::updateNewtonMethod_phi(VectorXd m_motion, double alpha)
 		int gid = unconstrainedMap_phi[c];
 		phi[gid] -= alpha * m_motion[c];
 
-		// Enforce monotonic increase compared to previous time step
-		if (phi[gid] < phi_old[gid])
-		{
-			phi[gid] = phi_old[gid];
-		}
-
 		// Clamp phi to [0,1]
-		if (phi[gid] < 0.0) phi[gid] = 0.0;
-		if (phi[gid] > 1.0) phi[gid] = 1.0;
+		// if (phi[gid] < 0.0) phi[gid] = 0.0;
+		// if (phi[gid] > 1.0) phi[gid] = 1.0;
 	}
 }
 
@@ -412,6 +394,17 @@ void elasticPlate::buildElemet()
 		0,   	0,   	2*mu,  	0,
 		0,   	2*mu,  	0,   	0,
 		0, 		0,      0,      2*mu;
+
+		m_basicElement.C_vol << 
+        lambda + mu, 0, 0, lambda + mu,
+        0,           0, 0, 0,
+        0,           0, 0, 0,
+        lambda + mu, 0, 0, lambda + mu;
+		m_basicElement.C_dev << 
+        mu,  0,    0,   -mu,
+        0,   0,    2*mu, 0,
+        0,   2*mu, 0,    0,
+        -mu, 0,    0,    mu;
 
 		// cerr << "C1: " << m_basicElement.C1 << endl;
 		// cerr << "C2: " << m_basicElement.C2 << endl;

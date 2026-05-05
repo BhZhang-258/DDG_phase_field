@@ -14,6 +14,8 @@ struct basicElement
 	Matrix4d C;
 	Matrix4d C1; // Volume term
 	Matrix4d C2; // Shear energy term
+	Matrix4d C_dev; // Deviatoric part of the stiffness matrix
+	Matrix4d C_vol; // Volumetric part of the stiffness matrix
 	Matrix2d M;
 
 	Matrix2d abar;

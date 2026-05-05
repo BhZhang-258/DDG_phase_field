@@ -40,24 +40,8 @@ void elasticForce::computeFe(timeStepper &m_stepper)
         Hel_minus.resize(6, 6);
         Hel_minus.setZero();
 
-        triElementElasticOnly(i, Eel_plus, fel_plus, Hel_plus, Eel_minus, fel_minus, Hel_minus);
+        triElementElasticAmor(i, Eel_plus, fel_plus, Hel_plus, Eel_minus, fel_minus, Hel_minus);
 		lastEelPlus(i) = Eel_plus;
-
-        
-        double Eel_total;
-        VectorXd fel_total;
-        MatrixXd Hel_total;
-        triElementElasticTotal(i, Eel_total, fel_total, Hel_total);
-
-        double E_split = Eel_plus + Eel_minus;
-        VectorXd f_split = fel_plus + fel_minus;
-        MatrixXd H_split = Hel_plus + Hel_minus;
-
-        double dE = abs(E_split - Eel_total);
-        double dF = (f_split - fel_total).norm();
-        double dH = (H_split - Hel_total).norm();
-
-            
 
         double phiBar = (Phi(0) + Phi(1) + Phi(2)) / 3.0;
         double oneMinusPhiBar = 1.0 - phiBar;
@@ -77,9 +61,8 @@ void elasticForce::computeFe(timeStepper &m_stepper)
         hessian.resize(6, 6);
         hessian.setZero();
 
-        // Hxx = g * hessian1
+        // Hxx = g * Hel_plus + Hel_minus  (Amor split)
         hessian.block(0, 0, 6, 6) = g * Hel_plus + Hel_minus;
-        hessian.block(0, 0, 6, 6) = g * Hel_total;
 
 
         VectorXi arrayIndex = plate->v_triangularElement[i].arrayIndex;
@@ -104,9 +87,12 @@ void elasticForce::updateHistoryField()
 {
     for (int i = 0; i < plate->ne; i++)
     {
+        double H_max = 500.0 * (Gc_input / ell_input);
+        double current_H = lastEelPlus(i) / plate->v_triangularElement[i].area;
+        current_H = std::min(current_H, H_max);
+
         plate->v_triangularElement[i].historyH = max(
-			plate->v_triangularElement[i].historyH,
-			lastEelPlus(i) / plate->v_triangularElement[i].area);
+			plate->v_triangularElement[i].historyH,current_H);
     }
 }
 
@@ -325,6 +311,74 @@ void elasticForce::triElementElasticOnly(
         }
         
         
+    }
+
+void elasticForce::triElementElasticAmor(
+        int idx,
+        double& Eel_plus, VectorXd& fel_plus, MatrixXd& Hel_plus,
+        double& Eel_minus, VectorXd& fel_minus, MatrixXd& Hel_minus)
+    {
+        Matrix2d A;
+        Matrix<double, 4, 6> fFFderiv;
+        std::vector<Matrix<double, 6, 6> > fFFhess;
+        Vector2d x1 = plate->getVertex(plate->v_triangularElement[idx].nv_1);
+        Vector2d x2 = plate->getVertex(plate->v_triangularElement[idx].nv_2);
+        Vector2d x3 = plate->getVertex(plate->v_triangularElement[idx].nv_3);
+
+        A = Geometry::firstFundamentalForm( x1 , x2 , x3 , &fFFderiv,  &fFFhess );
+
+        Matrix2d M     = plate->v_triangularElement[idx].M;
+        Matrix2d Minv  = M.inverse();
+        Matrix2d abar    = plate->v_triangularElement[idx].abar;
+        Matrix2d abarinv = plate->v_triangularElement[idx].abarinv;
+
+        double dA = plate->v_triangularElement[idx].area;
+
+        Matrix2d s = A - abar;
+        Vector4d eps = Eigen::Map<Vector4d>(s.data());
+        Matrix2d S_mat = M * abarinv * s * Minv;
+        double trS = S_mat.trace();
+
+        // Full (unsplit) projection
+        Matrix4d kronc = Geometry::kron( Minv.transpose(), M * abarinv);
+
+        // --- Total μ energy (shear) ---
+        Matrix<double, 6, 1> f_vol;
+        Matrix<double, 6, 6> H_vol;
+        double E_vol = stvk(plate->v_triangularElement[idx].C_vol, kronc,
+                           eps, eps, fFFderiv, fFFderiv, fFFhess, fFFhess,
+                           &f_vol, &H_vol);
+
+        // --- Total λ energy (volumetric) ---
+        Matrix<double, 6, 1> f_dev;
+        Matrix<double, 6, 6> H_dev;
+        double E_dev = stvk(plate->v_triangularElement[idx].C_dev, kronc,
+                            eps, eps, fFFderiv, fFFderiv, fFFhess, fFFhess,
+                            &f_dev, &H_dev);
+
+        double coeff = 1.0 / 4.0;
+
+        if (trS > 0.0)
+        {
+            // Expansion: all energy degrades
+            Eel_plus  = coeff * dA * (E_vol + E_dev);
+            fel_plus  = coeff * dA * (f_vol + f_dev);
+            Hel_plus  = coeff * dA * (H_vol + H_dev);
+            Eel_minus = 0.0;
+            fel_minus.setZero(6);
+            Hel_minus.setZero(6, 6);
+        }
+        else
+        {
+            // Compression: only volumetric energy degrades
+            Eel_plus = coeff * dA * E_dev;
+            fel_plus = coeff * dA * f_dev;
+            Hel_plus = coeff * dA * H_dev;
+
+            Eel_minus = coeff * dA * E_vol;
+            fel_minus = coeff * dA * f_vol;
+            Hel_minus = coeff * dA * H_vol;
+        }
     }
 
 void elasticForce::triElementElasticTotal(
