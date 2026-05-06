@@ -53,6 +53,7 @@ private:
 	int maxIter;
   Vector3d gVector;
   double viscosity;
+  double viscosityPhi;
   double Gc;
   double ell;
   double eta;

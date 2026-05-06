@@ -3,16 +3,17 @@ saveData 1
 YoungM 210e6
 totalTime 1
 deltaTime 1e-3
-density 10.0
+density 0.0
 stol 1e-3
 forceTol 1e-3
-maxIter 4
+maxIter 20
 viscosity 0.1
+viscosityPhi 0.01
 scaleRendering 1
 gVector 0.0 0.0 0.0
 Possion 0.3
 Gc 2700.0
 ell 0.015
-eta 1e-4
+eta 1e-5
 outputFreq 50
 

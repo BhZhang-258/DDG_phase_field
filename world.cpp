@@ -21,6 +21,7 @@ world::world(setInput &m_inputData)
 	maxIter = m_inputData.GetIntOpt("maxIter");
 	gVector = m_inputData.GetVecOpt("gVector");
 	viscosity = m_inputData.GetScalarOpt("viscosity");
+	viscosityPhi = m_inputData.GetScalarOpt("viscosityPhi");
 	Gc = m_inputData.GetScalarOpt("Gc");
 	ell = m_inputData.GetScalarOpt("ell");
 	eta = m_inputData.GetScalarOpt("eta");
@@ -106,6 +107,7 @@ void world::setPlateStepper()
 	plateBoundaryCondition();
 
 	plate->setup();
+	plate->updateTimeStep();
 
 	// set up stepper
 	SolverConfig config_e;
@@ -113,8 +115,6 @@ void world::setPlateStepper()
 	config_e.unconstrained_dof =  plate->uncons_u;
 	config_e.fullToUncons = plate->fullToUnconsMap_u;
 	config_e.isConstrained = plate->isConstrained_u;
-
-
 	stepper_e = new timeStepper(config_e);
 
 	SolverConfig config_phi;
@@ -122,19 +122,17 @@ void world::setPlateStepper()
 	config_phi.unconstrained_dof =  plate->uncons_phi;
 	config_phi.fullToUncons = plate->fullToUnconsMap_phi;
 	config_phi.isConstrained = plate->isConstrained_phi;
-	
 	stepper_phi = new timeStepper(config_phi);
 
 	// set up force
-	m_inertialForce = new inertialForce(*plate);
-	m_gravityForce = new externalGravityForce(*plate, gVector);
+	// m_inertialForce = new inertialForce(*plate);
+	// m_gravityForce = new externalGravityForce(*plate, gVector);
 	m_elasticForce = new elasticForce(*plate, Gc, ell, eta);
-	m_dampingForce = new dampingForce(*plate, viscosity);
+	m_dampingForce = new dampingForce(*plate, viscosity, viscosityPhi);
 	
-	plate->updateTimeStep();
 
 	// set up first jacobian
-	m_inertialForce->setFirstJacobian(*stepper_e);
+	// m_inertialForce->setFirstJacobian(*stepper_e);
 	m_elasticForce->setFirstJacobian(*stepper_e);
 	m_dampingForce->setFirstJacobian(*stepper_e);
 	stepper_e->finalizePattern();
@@ -144,6 +142,7 @@ void world::setPlateStepper()
 	if (plate->uncons_phi > 0)
 	{
 		m_elasticForce->setFirstJacobian_phi(*stepper_phi);
+		m_dampingForce->setFirstJacobian_phi(*stepper_phi);
 		stepper_phi->finalizePattern();
 		stepper_phi->first_time_PARDISO_setup();
 	}
@@ -194,7 +193,6 @@ void world::plateBoundaryCondition()
 		if ( abs(xCurrent(1) - 0.0) < 1e-8 )
 		{
 			plate->setVertexBoundaryCondition(xCurrent, i);
-
 			plate->setPhiBoundaryCondition(0.0, i);
 			
 		}
@@ -202,41 +200,35 @@ void world::plateBoundaryCondition()
 		if ( abs(xCurrent(1) - 1.0) < 1e-8 )
 		{
 			plate->setVertexBoundaryCondition(xCurrent, i);
-
 			plate->setPhiBoundaryCondition(0.0, i);
 			loadid.push_back(i);
 		}
 		// plate->setPhiBoundaryCondition(0.0, i);
-
-		
 	}
 
 }
 
 void world::updateTimeStep()
 {
-	if (stretchingDistance <= 0.005)
+	if (maxVal <= 0.7)
 	{
 		stretchingDistance += 1e-1 * deltaTime;
 	}
 	else
 	{
-		stretchingDistance += 0.2e-2 * deltaTime;
+		stretchingDistance += 0.5e-2 * deltaTime;
 	}
 	
 	for (int i = 0; i < loadid.size(); i++)
 	{
-		
-			Vector2d xCurrent = plate->getVertex(loadid[i]);
-			Vector2d xStart = plate->getVertexStart(loadid[i]);
-			xCurrent(1) = xStart(1) + stretchingDistance;
+		Vector2d xCurrent = plate->getVertex(loadid[i]);
+		Vector2d xStart = plate->getVertexStart(loadid[i]);
+		xCurrent(1) = xStart(1) + stretchingDistance;
 
-			plate->setVertexBoundaryCondition(xCurrent, loadid[i]);
-		
+		plate->setVertexBoundaryCondition(xCurrent, loadid[i]);
 	}
 	
 	
-
 	double normf = forceTol * 10.0;
 	double normf0 = 0;
 	
@@ -246,7 +238,8 @@ void world::updateTimeStep()
 	int iter_phi = 0;
 
 	// Start with a trial solution for our solution x
-	plate->updateGuess(); // x = x0 + u * dt
+	// We use phi instead u to advance the displacement update.
+	// plate->updateGuess(); // x = x0 + u * dt
 
 	const double armijo_c = 1e-4;
 	const int    max_ls   = 4;
@@ -257,10 +250,9 @@ void world::updateTimeStep()
 
 		stepper_e->setZero();
 
-		m_inertialForce->computeFi(*stepper_e);
+		// m_inertialForce->computeFi(*stepper_e);
 		m_elasticForce->computeFe(*stepper_e);
-		m_dampingForce->computeFd(*stepper_e);
-
+		// m_dampingForce->computeFd(*stepper_e); 
 		normf = stepper_e->GlobalForceVec.norm();
 
 		if (iter == 0) 
@@ -281,9 +273,9 @@ void world::updateTimeStep()
 		{
 			double R0 = normf;  // residual before step
 
-			m_inertialForce->computeJi(*stepper_e);
+			// m_inertialForce->computeJi(*stepper_e);
 			m_elasticForce->computeJe(*stepper_e);
-			m_dampingForce->computeJd(*stepper_e);
+			// m_dampingForce->computeJd(*stepper_e);
 
 			stepper_e->integrator(); // Solve equations of motion
 			VectorXd direction = stepper_e->GlobalMotionVec;
@@ -298,9 +290,9 @@ void world::updateTimeStep()
 				plate->updateNewtonMethod(direction, alpha);
 
 				stepper_e->setZero();
-				m_inertialForce->computeFi(*stepper_e);
+				// m_inertialForce->computeFi(*stepper_e);
 				m_elasticForce->computeFe(*stepper_e);
-				m_dampingForce->computeFd(*stepper_e);
+				// m_dampingForce->computeFd(*stepper_e);
 				double Rnew = stepper_e->GlobalForceVec.norm();
 
 				if (Rnew <= (1.0 - armijo_c * alpha) * R0)
@@ -338,6 +330,7 @@ void world::updateTimeStep()
 
 			stepper_phi->setZero();
 			m_elasticForce->computeFphi(*stepper_phi);
+			m_dampingForce->computeFd_phi(*stepper_phi);
 
 			normphi = stepper_phi->GlobalForceVec.norm();
 
@@ -359,6 +352,7 @@ void world::updateTimeStep()
 			{
 				double R0_phi = normphi;
 
+				m_dampingForce->computeJd_phi(*stepper_phi);
 				stepper_phi->integrator();
 				VectorXd direction_phi = stepper_phi->GlobalMotionVec;
 
@@ -372,8 +366,8 @@ void world::updateTimeStep()
 
 					stepper_phi->setZero();
 					m_elasticForce->computeFphi(*stepper_phi);
+					m_dampingForce->computeFd_phi(*stepper_phi);
 					double Rnew_phi = stepper_phi->GlobalForceVec.norm();
-					maxVal = plate->phi.maxCoeff();
 					if (Rnew_phi <= (1.0 - armijo_c * alpha_phi) * R0_phi)
 					{
 						break;
@@ -397,6 +391,7 @@ void world::updateTimeStep()
 	if (render) 
 	{
 		cout << "time: " << currentTime << " iter_u=" << iter << " iter_phi=" << iter_phi << endl;
+		maxVal = plate->phi.maxCoeff();
 		cout << "maxVal: " << maxVal << endl;
 	}
 

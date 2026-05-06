@@ -40,7 +40,7 @@ void elasticForce::computeFe(timeStepper &m_stepper)
         Hel_minus.resize(6, 6);
         Hel_minus.setZero();
 
-        triElementElasticAmor(i, Eel_plus, fel_plus, Hel_plus, Eel_minus, fel_minus, Hel_minus);
+        triElementElasticAmor(i, Eel_plus, fel_plus, &Hel_plus, Eel_minus, fel_minus, &Hel_minus);
 		lastEelPlus(i) = Eel_plus;
 
         double phiBar = (Phi(0) + Phi(1) + Phi(2)) / 3.0;
@@ -83,6 +83,49 @@ void elasticForce::computeFe(timeStepper &m_stepper)
 
     }
 }
+void elasticForce::computeFeOnly(timeStepper &m_stepper)
+{
+    
+    for (int i = 0; i < plate->ne; i++)
+    {
+
+        Vector3d Phi;
+        Phi(0) = plate->getPhi(plate->v_triangularElement[i].nv_1);
+        Phi(1) = plate->getPhi(plate->v_triangularElement[i].nv_2);
+        Phi(2) = plate->getPhi(plate->v_triangularElement[i].nv_3);        
+
+        Eel_plus = 0.0;
+        fel_plus.resize(6);
+        fel_plus.setZero();
+
+        Eel_minus = 0.0;
+        fel_minus.resize(6);
+        fel_minus.setZero();
+
+        triElementElasticAmor(i, Eel_plus, fel_plus, nullptr, Eel_minus, fel_minus, nullptr);
+		lastEelPlus(i) = Eel_plus;
+
+        double phiBar = (Phi(0) + Phi(1) + Phi(2)) / 3.0;
+        double oneMinusPhiBar = 1.0 - phiBar;
+
+        double g = oneMinusPhiBar * oneMinusPhiBar + eta_input;
+
+        VectorXd grad;
+        grad.resize(6);
+        grad.setZero();
+
+        // dE/dX = g * grad1
+        grad.segment(0, 6) = g * fel_plus + fel_minus;
+
+        VectorXi arrayIndex = plate->v_triangularElement[i].arrayIndex;
+
+        for (int j = 0; j < 6; j++)
+        {
+            m_stepper.addForce( arrayIndex(j), grad(j) );
+        }
+
+    }
+}
 void elasticForce::updateHistoryField()
 {
     for (int i = 0; i < plate->ne; i++)
@@ -90,9 +133,17 @@ void elasticForce::updateHistoryField()
         double H_max = 500.0 * (Gc_input / ell_input);
         double current_H = lastEelPlus(i) / plate->v_triangularElement[i].area;
         current_H = std::min(current_H, H_max);
-
-        plate->v_triangularElement[i].historyH = max(
+        Vector3d Phi;
+        Phi(0) = plate->getPhi(plate->v_triangularElement[i].nv_1);
+        Phi(1) = plate->getPhi(plate->v_triangularElement[i].nv_2);
+        Phi(2) = plate->getPhi(plate->v_triangularElement[i].nv_3);
+        double phiBar = (Phi(0) + Phi(1) + Phi(2)) / 3.0;
+        if (phiBar< 0.99)
+        {
+            plate->v_triangularElement[i].historyH = max(
 			plate->v_triangularElement[i].historyH,current_H);
+        }
+        
     }
 }
 
@@ -189,7 +240,7 @@ void elasticForce::setFirstJacobian_phi(timeStepper &m_stepper)
 	}
 }
 
-void elasticForce::triElementElasticOnly(
+void elasticForce::triElementElasticMiehe(
         int idx,
         double& Eel_plus,
         VectorXd& fel_plus,
@@ -315,9 +366,11 @@ void elasticForce::triElementElasticOnly(
 
 void elasticForce::triElementElasticAmor(
         int idx,
-        double& Eel_plus, VectorXd& fel_plus, MatrixXd& Hel_plus,
-        double& Eel_minus, VectorXd& fel_minus, MatrixXd& Hel_minus)
+        double& Eel_plus, VectorXd& fel_plus, MatrixXd* Hel_plus,
+        double& Eel_minus, VectorXd& fel_minus, MatrixXd* Hel_minus)
     {
+        const bool needHess = (Hel_plus != nullptr) || (Hel_minus != nullptr);
+
         Matrix2d A;
         Matrix<double, 4, 6> fFFderiv;
         std::vector<Matrix<double, 6, 6> > fFFhess;
@@ -325,7 +378,8 @@ void elasticForce::triElementElasticAmor(
         Vector2d x2 = plate->getVertex(plate->v_triangularElement[idx].nv_2);
         Vector2d x3 = plate->getVertex(plate->v_triangularElement[idx].nv_3);
 
-        A = Geometry::firstFundamentalForm( x1 , x2 , x3 , &fFFderiv,  &fFFhess );
+        A = Geometry::firstFundamentalForm( x1 , x2 , x3 , &fFFderiv,
+                                            needHess ? &fFFhess : nullptr );
 
         Matrix2d M     = plate->v_triangularElement[idx].M;
         Matrix2d Minv  = M.inverse();
@@ -342,19 +396,19 @@ void elasticForce::triElementElasticAmor(
         // Full (unsplit) projection
         Matrix4d kronc = Geometry::kron( Minv.transpose(), M * abarinv);
 
-        // --- Total μ energy (shear) ---
+        // --- Volumetric energy  ---
         Matrix<double, 6, 1> f_vol;
         Matrix<double, 6, 6> H_vol;
         double E_vol = stvk(plate->v_triangularElement[idx].C_vol, kronc,
                            eps, eps, fFFderiv, fFFderiv, fFFhess, fFFhess,
-                           &f_vol, &H_vol);
+                           &f_vol, needHess ? &H_vol : nullptr);
 
-        // --- Total λ energy (volumetric) ---
+        // --- Deviatoric energy ---
         Matrix<double, 6, 1> f_dev;
         Matrix<double, 6, 6> H_dev;
         double E_dev = stvk(plate->v_triangularElement[idx].C_dev, kronc,
                             eps, eps, fFFderiv, fFFderiv, fFFhess, fFFhess,
-                            &f_dev, &H_dev);
+                            &f_dev, needHess ? &H_dev : nullptr);
 
         double coeff = 1.0 / 4.0;
 
@@ -363,25 +417,25 @@ void elasticForce::triElementElasticAmor(
             // Expansion: all energy degrades
             Eel_plus  = coeff * dA * (E_vol + E_dev);
             fel_plus  = coeff * dA * (f_vol + f_dev);
-            Hel_plus  = coeff * dA * (H_vol + H_dev);
+            if (Hel_plus) *Hel_plus  = coeff * dA * (H_vol + H_dev);
             Eel_minus = 0.0;
             fel_minus.setZero(6);
-            Hel_minus.setZero(6, 6);
+            if (Hel_minus) Hel_minus->setZero(6, 6);
         }
         else
         {
-            // Compression: only volumetric energy degrades
+            // Compression: deviatoric degrades, volumetric resists
             Eel_plus = coeff * dA * E_dev;
             fel_plus = coeff * dA * f_dev;
-            Hel_plus = coeff * dA * H_dev;
+            if (Hel_plus) *Hel_plus = coeff * dA * H_dev;
 
             Eel_minus = coeff * dA * E_vol;
             fel_minus = coeff * dA * f_vol;
-            Hel_minus = coeff * dA * H_vol;
+            if (Hel_minus) *Hel_minus = coeff * dA * H_vol;
         }
     }
 
-void elasticForce::triElementElasticTotal(
+void elasticForce::triElementElastic(
         int idx,
         double& Eel_total,
         VectorXd& fel_total,
